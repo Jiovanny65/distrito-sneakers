@@ -1118,6 +1118,71 @@ h1, h2, h3, h4 {
   margin-top: 8px;
 }
 
+/* Prefijo +56 en teléfono */
+.phone-input {
+  display: flex;
+  align-items: stretch;
+  border: 1.5px solid var(--gray-300);
+  border-radius: 10px;
+  background: var(--white);
+  overflow: hidden;
+  transition: var(--transition);
+}
+.phone-input:focus-within {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(30, 78, 216, 0.12);
+}
+.phone-input__prefix {
+  display: grid;
+  place-items: center;
+  padding: 0 12px;
+  background: var(--gray-100);
+  color: var(--gray-700);
+  font-weight: 700;
+  font-size: 14px;
+  border-right: 1.5px solid var(--gray-300);
+  font-family: 'Space Grotesk', sans-serif;
+}
+.phone-input input {
+  flex: 1;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 11px 14px !important;
+  background: transparent !important;
+  outline: none !important;
+}
+
+/* Bloque de dirección estructurado */
+.address-block {
+  background: var(--gray-100);
+  border-radius: 12px;
+  padding: 18px;
+  border: 1px solid var(--gray-300);
+}
+.form__subtitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--blue);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-family: 'Inter', sans-serif;
+}
+.form__grid {
+  display: grid;
+  gap: 12px;
+}
+.form__grid--2 {
+  grid-template-columns: 1fr 1fr;
+}
+.form__grid .form__group--full {
+  grid-column: 1 / -1;
+}
+@media (max-width: 560px) {
+  .form__grid--2 { grid-template-columns: 1fr; }
+}
+
 /* ============ RESPONSIVE ============ */
 @media (max-width: 960px) {
   .nav { display: none; }

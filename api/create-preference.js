@@ -37,6 +37,12 @@ export default async function handler(req, res) {
       email,
       entrega,
       direccion,
+      region,
+      comuna,
+      calle,
+      depto,
+      codigo_postal,
+      pais,
       comentarios
     } = body;
 
@@ -61,8 +67,13 @@ export default async function handler(req, res) {
       calidad ? `Calidad: ${calidad}` : null,
       entrega ? `Entrega: ${entrega}` : null,
       direccion ? `Direccion: ${direccion}` : null,
+      region ? `Region: ${region}` : null,
       comentarios ? `Comentarios: ${comentarios}` : null
     ].filter(Boolean).join(' | ').slice(0, 600);
+
+    // Limpieza del telefono: dejar solo digitos, asegurar formato +56XXXXXXXXX
+    const phoneDigits = String(telefono || '').replace(/\D/g, '');
+    const phoneClp = phoneDigits.startsWith('56') ? phoneDigits : ('56' + phoneDigits);
 
     // Resolver origin para back_urls
     const proto = (req.headers['x-forwarded-proto'] || 'https').toString().split(',')[0];
@@ -83,8 +94,24 @@ export default async function handler(req, res) {
       payer: {
         name: nombre,
         email: email || undefined,
-        phone: { number: telefono }
+        phone: { area_code: '56', number: phoneDigits.replace(/^56/, '') },
+        address: (calle || comuna) ? {
+          street_name: calle || '',
+          street_number: '',
+          zip_code: codigo_postal || ''
+        } : undefined
       },
+      shipments: (calle || comuna) ? {
+        receiver_address: {
+          street_name: calle || '',
+          street_number: '',
+          zip_code: codigo_postal || '',
+          city_name: comuna || '',
+          state_name: region || '',
+          country_name: 'Chile',
+          floor: depto || ''
+        }
+      } : undefined,
       metadata: {
         product_id: productId || null,
         product_name: productName,
@@ -94,8 +121,14 @@ export default async function handler(req, res) {
         quality: calidad || null,
         delivery: entrega || null,
         address: direccion || null,
+        region: region || null,
+        comuna: comuna || null,
+        street: calle || null,
+        apartment: depto || null,
+        zip: codigo_postal || null,
+        country: pais || 'Chile',
         comments: comentarios || null,
-        customer_phone: telefono
+        customer_phone: '+' + phoneClp
       },
       back_urls: origin ? {
         success: `${origin}/gracias.html?status=success`,

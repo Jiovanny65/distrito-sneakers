@@ -5,6 +5,26 @@
 // Número de WhatsApp (cambiar por el real - formato Chile sin símbolos)
 const WHATSAPP_NUMBER = '56977539776';
 
+// Las 16 regiones de Chile (Norte → Sur)
+const REGIONES_CHILE = [
+  'Arica y Parinacota',
+  'Tarapacá',
+  'Antofagasta',
+  'Atacama',
+  'Coquimbo',
+  'Valparaíso',
+  'Metropolitana de Santiago',
+  'Libertador Gral. B. O\'Higgins',
+  'Maule',
+  'Ñuble',
+  'Biobío',
+  'La Araucanía',
+  'Los Ríos',
+  'Los Lagos',
+  'Aysén del Gral. C. Ibáñez',
+  'Magallanes y Antártica Chilena'
+];
+
 // ============ DATA: PRODUCTOS (Supabase) ============
 let PRODUCTS = [];
 
@@ -125,8 +145,11 @@ function openProductModal(productId) {
           </div>
 
           <div class="form__group">
-            <label>Teléfono <span class="req">*</span></label>
-            <input type="tel" name="telefono" required placeholder="+54 9 11 1234-5678">
+            <label>Teléfono (WhatsApp) <span class="req">*</span></label>
+            <div class="phone-input">
+              <span class="phone-input__prefix">+56</span>
+              <input type="tel" name="telefono" required pattern="[0-9 ]{8,12}" placeholder="9 1234 5678" maxlength="12">
+            </div>
           </div>
 
           ${isShoes ? `
@@ -192,9 +215,38 @@ function openProductModal(productId) {
             <input type="text" name="valor" value="${formatPrice(product.price)}" readonly>
           </div>
 
-          <div class="form__group form__group--full" id="direccionGroup" style="display:none;">
-            <label>Dirección de entrega</label>
-            <input type="text" name="direccion" placeholder="Calle, número, comuna, ciudad, región">
+          <div class="form__group form__group--full address-block" id="direccionGroup" style="display:none;">
+            <h4 class="form__subtitle">📍 Dirección de envío</h4>
+
+            <div class="form__grid form__grid--2">
+              <div class="form__group">
+                <label>Región <span class="req">*</span></label>
+                <select name="region">
+                  <option value="">Selecciona región</option>
+                  ${REGIONES_CHILE.map(r => `<option value="${r}">${r}</option>`).join('')}
+                </select>
+              </div>
+
+              <div class="form__group">
+                <label>Comuna <span class="req">*</span></label>
+                <input type="text" name="comuna" placeholder="Ej: Providencia">
+              </div>
+
+              <div class="form__group form__group--full">
+                <label>Calle y número <span class="req">*</span></label>
+                <input type="text" name="calle" placeholder="Ej: Av. Apoquindo 1234">
+              </div>
+
+              <div class="form__group">
+                <label>Depto / Casa</label>
+                <input type="text" name="depto" placeholder="Ej: Depto 503">
+              </div>
+
+              <div class="form__group">
+                <label>Código postal</label>
+                <input type="text" name="codigo_postal" placeholder="Opcional" maxlength="10">
+              </div>
+            </div>
           </div>
 
           <div class="form__group form__group--full">
@@ -228,13 +280,17 @@ function openProductModal(productId) {
   modal.setAttribute('aria-hidden', 'false');
   document.body.style.overflow = 'hidden';
 
-  // Mostrar campo dirección solo si es envío
+  // Mostrar bloque de dirección solo si es envío a domicilio
   const entregaSelect = $('#entregaSelect');
   const direccionGroup = $('#direccionGroup');
+  const requiredAddressFields = ['region', 'comuna', 'calle'];
   entregaSelect.addEventListener('change', () => {
     const needsAddress = entregaSelect.value.startsWith('Envío');
-    direccionGroup.style.display = needsAddress ? 'flex' : 'none';
-    direccionGroup.querySelector('input').required = needsAddress;
+    direccionGroup.style.display = needsAddress ? 'block' : 'none';
+    requiredAddressFields.forEach(name => {
+      const el = direccionGroup.querySelector(`[name="${name}"]`);
+      if (el) el.required = needsAddress;
+    });
   });
 
   // Recalcular valor según cantidad
@@ -289,11 +345,20 @@ function handleOrderSubmit(form, product) {
   message += `*Cantidad:* ${cantidad}\n`;
   message += `*Valor:* ${totalValor}\n`;
   message += `*Nombre:* ${data.nombre}\n`;
-  message += `*Teléfono:* ${data.telefono}\n`;
+  message += `*Teléfono:* +56 ${(data.telefono || '').trim()}\n`;
   message += `*Método de entrega:* ${data.entrega}\n`;
 
-  if (data.direccion && data.entrega && data.entrega.startsWith('Envío')) {
-    message += `*Dirección:* ${data.direccion}\n`;
+  if (data.entrega && data.entrega.startsWith('Envío')) {
+    const direccionCompleta = [
+      data.calle,
+      data.depto ? `(${data.depto})` : null,
+      data.comuna,
+      data.region,
+      data.codigo_postal ? `CP ${data.codigo_postal}` : null
+    ].filter(Boolean).join(', ');
+    if (direccionCompleta) {
+      message += `*Dirección:* ${direccionCompleta}\n`;
+    }
   }
 
   if (data.comentarios && data.comentarios.trim()) {
@@ -316,6 +381,19 @@ async function handleMercadoPago(form, product, btn) {
   const isShoes = product.category === 'zapatillas';
   const cantidad = parseInt(data.cantidad) || 1;
 
+  // Dirección estructurada (solo si es envío a domicilio)
+  let direccionCompleta;
+  if (data.entrega && data.entrega.startsWith('Envío')) {
+    direccionCompleta = [
+      data.calle,
+      data.depto ? `(${data.depto})` : null,
+      data.comuna,
+      data.region,
+      data.codigo_postal ? `CP ${data.codigo_postal}` : null,
+      'Chile'
+    ].filter(Boolean).join(', ');
+  }
+
   const payload = {
     productId:   product.id,
     productName: product.name,
@@ -327,11 +405,17 @@ async function handleMercadoPago(form, product, btn) {
     cantidad:    cantidad,
     precio:      product.price,
     nombre:      data.nombre,
-    telefono:    data.telefono,
+    telefono:    '+56 ' + (data.telefono || '').trim(),
     email:       data.email || undefined,
     entrega:     data.entrega,
-    direccion:   data.direccion || undefined,
-    comentarios: data.comentarios || undefined
+    direccion:   direccionCompleta,
+    region:      data.region || undefined,
+    comuna:      data.comuna || undefined,
+    calle:       data.calle || undefined,
+    depto:       data.depto || undefined,
+    codigo_postal: data.codigo_postal || undefined,
+    comentarios: data.comentarios || undefined,
+    pais:        'Chile'
   };
 
   const originalText = btn.innerHTML;
