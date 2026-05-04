@@ -38,8 +38,11 @@ function verifyMpSignature(req, secret) {
 }
 
 export default async function handler(req, res) {
-  if (req.method === 'GET') return res.status(200).send('OK');
-  if (req.method !== 'POST') return res.status(405).end();
+  // MP suele enviar HEAD/GET para verificar conectividad antes de POST
+  if (req.method === 'HEAD')    return res.status(200).end();
+  if (req.method === 'GET')     return res.status(200).send('OK');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST')    return res.status(200).end(); // No bloquear nada
 
   try {
     const ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
