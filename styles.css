@@ -232,6 +232,21 @@ h1, h2, h3, h4 {
   box-shadow: 0 10px 24px rgba(37, 211, 102, 0.35);
 }
 
+.btn--mp {
+  background: linear-gradient(135deg, #00b1ea, #009ee3);
+  color: var(--white);
+}
+.btn--mp:hover {
+  background: linear-gradient(135deg, #009ee3, #0084c2);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 158, 227, 0.4);
+}
+.btn--mp:disabled {
+  opacity: 0.7;
+  cursor: wait;
+  transform: none;
+}
+
 /* ============ HERO ============ */
 .hero {
   position: relative;
@@ -1081,6 +1096,18 @@ h1, h2, h3, h4 {
 .form__actions {
   grid-column: 1 / -1;
   margin-top: 6px;
+}
+.form__actions--split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.form__actions--split .btn {
+  width: 100%;
+  justify-content: center;
+}
+@media (max-width: 560px) {
+  .form__actions--split { grid-template-columns: 1fr; }
 }
 
 .form__hint {

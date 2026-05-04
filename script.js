@@ -202,14 +202,23 @@ function openProductModal(productId) {
             <textarea name="comentarios" placeholder="Indicaciones especiales, dudas o preferencias..."></textarea>
           </div>
 
-          <div class="form__actions">
-            <button type="submit" class="btn btn--whatsapp btn--lg btn--block">
+          <div class="form__group form__group--full">
+            <label>Email (opcional, para Mercado Pago)</label>
+            <input type="email" name="email" placeholder="tu@email.com">
+          </div>
+
+          <div class="form__actions form__actions--split">
+            <button type="submit" class="btn btn--whatsapp btn--lg" data-action="whatsapp">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20.52 3.48A11.93 11.93 0 0 0 12.04 0C5.5 0 .2 5.3.2 11.84c0 2.09.55 4.12 1.6 5.92L0 24l6.4-1.68a11.82 11.82 0 0 0 5.64 1.43h.01c6.54 0 11.84-5.3 11.84-11.84a11.8 11.8 0 0 0-3.37-8.43Z"/></svg>
-              Comprar por WhatsApp
+              Consultar por WhatsApp
+            </button>
+            <button type="button" class="btn btn--mp btn--lg" data-action="mercadopago">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+              Pagar con Mercado Pago
             </button>
           </div>
 
-          <p class="form__hint">Al enviar, se abrirá WhatsApp con el resumen de tu pedido. No se realiza cobro online.</p>
+          <p class="form__hint">WhatsApp: consulta sin pago. Mercado Pago: pago inmediato con tarjeta, débito o transferencia.</p>
         </form>
       </div>
     </div>
@@ -240,6 +249,12 @@ function openProductModal(productId) {
   $('#orderForm').addEventListener('submit', (e) => {
     e.preventDefault();
     handleOrderSubmit(e.target, product);
+  });
+
+  // Click -> Mercado Pago
+  body.querySelector('[data-action="mercadopago"]').addEventListener('click', (e) => {
+    e.preventDefault();
+    handleMercadoPago($('#orderForm'), product, e.currentTarget);
   });
 }
 
@@ -289,6 +304,59 @@ function handleOrderSubmit(form, product) {
 
   const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
   window.open(url, '_blank');
+}
+
+// ============ MERCADO PAGO ============
+async function handleMercadoPago(form, product, btn) {
+  // Validacion HTML5
+  if (!form.reportValidity()) return;
+
+  const fd = new FormData(form);
+  const data = Object.fromEntries(fd.entries());
+  const isShoes = product.category === 'zapatillas';
+  const cantidad = parseInt(data.cantidad) || 1;
+
+  const payload = {
+    productId:   product.id,
+    productName: product.name,
+    productType: isShoes ? 'Zapatilla' : 'Accesorio',
+    modelo:      isShoes ? data.modelo : undefined,
+    talla:       isShoes ? data.talla : data.tamano,
+    color:       data.color,
+    calidad:     data.calidad,
+    cantidad:    cantidad,
+    precio:      product.price,
+    nombre:      data.nombre,
+    telefono:    data.telefono,
+    email:       data.email || undefined,
+    entrega:     data.entrega,
+    direccion:   data.direccion || undefined,
+    comentarios: data.comentarios || undefined
+  };
+
+  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = 'Conectando con Mercado Pago...';
+
+  try {
+    const res = await fetch('/api/create-preference', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const result = await res.json();
+
+    if (!res.ok || !result.init_point) {
+      throw new Error(result.error || result.details || 'Error desconocido');
+    }
+
+    // Redirigir al checkout de MP
+    window.location.href = result.init_point;
+  } catch (err) {
+    alert('No se pudo conectar con Mercado Pago: ' + err.message + '\n\nPuedes seguir comprando por WhatsApp mientras tanto.');
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
 }
 
 // ============ EVENT DELEGATION ============

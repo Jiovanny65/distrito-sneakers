@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>¡Gracias por tu compra! · Distrito Sneakers</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family:'Inter',sans-serif;
+      min-height:100vh;
+      display:grid;
+      place-items:center;
+      padding:24px;
+      background:
+        radial-gradient(ellipse at top, rgba(30,78,216,.18), transparent 60%),
+        linear-gradient(180deg,#0a0a0f,#14141b);
+      color:#fff;
+    }
+    .card{
+      background:rgba(255,255,255,.04);
+      backdrop-filter:blur(20px);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:24px;
+      padding:54px 46px;
+      max-width:540px;
+      width:100%;
+      text-align:center;
+      box-shadow:0 30px 80px rgba(0,0,0,.5);
+    }
+    .icon{
+      width:90px;
+      height:90px;
+      margin:0 auto 24px;
+      border-radius:50%;
+      display:grid;
+      place-items:center;
+      font-size:46px;
+      font-weight:800;
+    }
+    .icon--ok{background:linear-gradient(135deg,#22c55e,#15803d); box-shadow:0 12px 40px rgba(34,197,94,.4); animation:pop .4s ease-out;}
+    .icon--pending{background:linear-gradient(135deg,#f59e0b,#b45309); box-shadow:0 12px 40px rgba(245,158,11,.4);}
+    .icon--fail{background:linear-gradient(135deg,#ef4444,#991b1b); box-shadow:0 12px 40px rgba(239,68,68,.4);}
+    @keyframes pop{0%{transform:scale(.5);opacity:0}60%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+    h1{
+      font-family:'Space Grotesk',sans-serif;
+      font-size:28px;
+      letter-spacing:-.02em;
+      margin-bottom:12px;
+    }
+    p{
+      color:rgba(255,255,255,.75);
+      font-size:15.5px;
+      line-height:1.65;
+      margin-bottom:28px;
+    }
+    .btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:14px 24px;
+      border-radius:100px;
+      font-weight:600;
+      font-size:14.5px;
+      text-decoration:none;
+      transition:.2s;
+      border:2px solid transparent;
+    }
+    .btn--primary{background:#1e4ed8;color:#fff}
+    .btn--primary:hover{background:#1230a3;transform:translateY(-2px)}
+    .btn--whatsapp{background:#25d366;color:#fff}
+    .btn--whatsapp:hover{background:#1fb957;transform:translateY(-2px)}
+    .btn--ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.2)}
+    .btn--ghost:hover{border-color:#fff}
+    .meta{
+      margin-top:24px;
+      padding-top:20px;
+      border-top:1px solid rgba(255,255,255,.08);
+      font-size:12.5px;
+      color:rgba(255,255,255,.5);
+    }
+    .meta strong{color:rgba(255,255,255,.85)}
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <!-- Contenido se llena via JS según ?status= -->
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('status') || 'success';
+    const paymentId = params.get('payment_id') || params.get('collection_id');
+    const externalRef = params.get('external_reference');
+    const card = document.getElementById('card');
+
+    const config = {
+      success: {
+        icon: '✓',
+        cls: 'icon--ok',
+        title: '¡Pago aprobado!',
+        msg: 'Recibimos tu pedido correctamente. Te contactaremos por WhatsApp en las próximas horas para confirmar disponibilidad y enviarte el número de rastreo.<br><br>El tiempo de envío es de <strong>2 a 4 semanas</strong> a todo Chile.'
+      },
+      pending: {
+        icon: '⏳',
+        cls: 'icon--pending',
+        title: 'Pago pendiente',
+        msg: 'Tu pago aún se está procesando. Te avisaremos por WhatsApp cuando se acredite.'
+      },
+      failure: {
+        icon: '✕',
+        cls: 'icon--fail',
+        title: 'Pago no completado',
+        msg: 'Hubo un problema con tu pago y la transacción no se completó. Puedes intentarlo nuevamente o contactarnos por WhatsApp para coordinar otro método de pago.'
+      }
+    };
+
+    const cfg = config[status] || config.success;
+
+    card.innerHTML = `
+      <div class="icon ${cfg.cls}">${cfg.icon}</div>
+      <h1>${cfg.title}</h1>
+      <p>${cfg.msg}</p>
+      <div class="btns">
+        <a href="/" class="btn btn--primary">Volver a la tienda</a>
+        <a href="https://wa.me/56977539776" target="_blank" class="btn btn--whatsapp">Escribir por WhatsApp</a>
+      </div>
+      ${(paymentId || externalRef) ? `
+        <div class="meta">
+          ${paymentId   ? `<div><strong>ID de pago:</strong> ${paymentId}</div>` : ''}
+          ${externalRef ? `<div><strong>Referencia:</strong> ${externalRef}</div>` : ''}
+        </div>
+      ` : ''}
+    `;
+  </script>
+</body>
+</html>
