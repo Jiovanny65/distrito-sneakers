@@ -7,10 +7,20 @@ const $$ = (s, c = document) => c.querySelectorAll(s);
 
 // ============ AUTH ============
 async function checkAuth() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    showDashboard(session.user);
-  } else {
+  try {
+    if (typeof sb === 'undefined' || !sb || !sb.auth) {
+      console.warn('[ADMIN] Supabase no disponible al chequear sesion');
+      showLogin();
+      return;
+    }
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      showDashboard(session.user);
+    } else {
+      showLogin();
+    }
+  } catch (err) {
+    console.error('[ADMIN] Error en checkAuth:', err);
     showLogin();
   }
 }
@@ -27,21 +37,60 @@ function showDashboard(user) {
   loadProducts();
 }
 
-$('#loginForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const email = fd.get('email');
-  const password = fd.get('password');
-  const errEl = $('#loginError');
-  errEl.textContent = '';
-
-  const { error, data } = await sb.auth.signInWithPassword({ email, password });
-  if (error) {
-    errEl.textContent = error.message;
+function attachLoginHandler() {
+  const form = $('#loginForm');
+  if (!form) {
+    console.error('[ADMIN] No se encontro #loginForm');
     return;
   }
-  showDashboard(data.user);
-});
+
+  // Verificacion al cargar
+  if (typeof sb === 'undefined' || !sb || !sb.auth) {
+    console.error('[ADMIN] El cliente Supabase no se inicializo. Revisa que el SDK haya cargado.');
+    const errEl = $('#loginError');
+    if (errEl) errEl.textContent = 'Error: no se cargo el SDK de Supabase. Revisa tu conexion.';
+  } else {
+    console.log('[ADMIN] Supabase cliente OK ✓');
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const email = String(fd.get('email') || '').trim();
+    const password = String(fd.get('password') || '');
+    const errEl = $('#loginError');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+
+    errEl.textContent = '';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Ingresando...';
+
+    console.log('[ADMIN] Intentando login con:', email);
+
+    try {
+      if (typeof sb === 'undefined' || !sb || !sb.auth) {
+        throw new Error('Cliente Supabase no disponible. Recarga la pagina.');
+      }
+      const { error, data } = await sb.auth.signInWithPassword({ email, password });
+      if (error) {
+        console.error('[ADMIN] Error de Supabase:', error);
+        errEl.textContent = '⚠️ ' + error.message;
+        return;
+      }
+      console.log('[ADMIN] Login OK', data.user.email);
+      showDashboard(data.user);
+    } catch (err) {
+      console.error('[ADMIN] Excepcion:', err);
+      errEl.textContent = '⚠️ ' + (err.message || 'Error desconocido');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
+    }
+  });
+}
+
+attachLoginHandler();
 
 $('#logoutBtn').addEventListener('click', async () => {
   await sb.auth.signOut();
