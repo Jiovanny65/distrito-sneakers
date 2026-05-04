@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Admin · Distrito Sneakers</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+
+  <!-- ====== LOGIN ====== -->
+  <section class="login" id="loginScreen">
+    <div class="login__card">
+      <div class="login__brand">
+        <img src="assets/logo.png" alt="Distrito Sneakers" class="login__logo">
+      </div>
+      <h1>Panel de Administración</h1>
+      <p class="login__sub">Inicia sesión para gestionar tu tienda.</p>
+
+      <form id="loginForm" class="form">
+        <div class="form__group">
+          <label>Email</label>
+          <input type="email" name="email" required autocomplete="email" placeholder="admin@distritosneakers.cl">
+        </div>
+        <div class="form__group">
+          <label>Contraseña</label>
+          <input type="password" name="password" required autocomplete="current-password" placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn btn--primary btn--block">Ingresar</button>
+        <p class="login__error" id="loginError"></p>
+      </form>
+
+      <p class="login__hint">¿No tienes cuenta? Crea un usuario en Supabase Dashboard → Authentication → Users.</p>
+    </div>
+  </section>
+
+  <!-- ====== DASHBOARD ====== -->
+  <section class="dashboard" id="dashboard" hidden>
+
+    <header class="topbar-admin">
+      <div class="topbar-admin__brand">
+        <img src="assets/logo.png" alt="Distrito Sneakers" class="topbar-admin__logo">
+        <span class="topbar-admin__pill">ADMIN</span>
+      </div>
+      <div class="topbar-admin__actions">
+        <a href="index.html" target="_blank" class="btn btn--ghost btn--sm">Ver tienda ↗</a>
+        <span id="userEmail" class="topbar-admin__user"></span>
+        <button class="btn btn--dark btn--sm" id="logoutBtn">Cerrar sesión</button>
+      </div>
+    </header>
+
+    <main class="dashboard__main">
+
+      <div class="stats">
+        <div class="stat">
+          <span class="stat__label">Total productos</span>
+          <span class="stat__value" id="statTotal">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat__label">Activos</span>
+          <span class="stat__value" id="statActive">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat__label">Destacados</span>
+          <span class="stat__value" id="statFeatured">—</span>
+        </div>
+        <div class="stat stat--accent">
+          <span class="stat__label">Acciones</span>
+          <button class="btn btn--primary btn--sm" id="newProductBtn">+ Nuevo producto</button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <input type="search" id="searchBox" placeholder="Buscar por nombre, color, tag..." class="toolbar__search">
+        <select id="filterStatus" class="toolbar__select">
+          <option value="all">Todos</option>
+          <option value="active">Solo activos</option>
+          <option value="inactive">Solo inactivos</option>
+          <option value="featured">Solo destacados</option>
+        </select>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table" id="productsTable">
+          <thead>
+            <tr>
+              <th>Foto</th>
+              <th>Nombre</th>
+              <th>Precio</th>
+              <th>Tag</th>
+              <th>Destacado</th>
+              <th>Activo</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="productsBody">
+            <tr><td colspan="7" class="table__empty">Cargando productos...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </main>
+  </section>
+
+  <!-- ====== MODAL: PRODUCT FORM ====== -->
+  <div class="modal" id="productModal" aria-hidden="true">
+    <div class="modal__overlay" data-close></div>
+    <div class="modal__dialog">
+      <button class="modal__close" data-close>×</button>
+      <h2 id="modalTitle">Nuevo producto</h2>
+
+      <form id="productForm" class="form form--admin">
+        <input type="hidden" name="id">
+
+        <div class="form__group form__group--full">
+          <label>Imagen del producto</label>
+          <div class="img-uploader">
+            <div class="img-uploader__preview" id="imgPreview">
+              <span>Sin imagen</span>
+            </div>
+            <div class="img-uploader__actions">
+              <input type="file" id="imgFile" accept="image/*" hidden>
+              <button type="button" class="btn btn--ghost btn--sm" id="imgFileBtn">📷 Subir archivo</button>
+              <span class="img-uploader__or">o</span>
+              <input type="url" name="image_url" id="imgUrl" placeholder="Pega URL de imagen externa" class="img-uploader__urlinput">
+            </div>
+          </div>
+        </div>
+
+        <div class="form__group form__group--full">
+          <label>Nombre <span class="req">*</span></label>
+          <input type="text" name="name" required placeholder="Ej: Air Jordan 4 Retro 'Black Cat'">
+        </div>
+
+        <div class="form__group">
+          <label>Categoría <span class="req">*</span></label>
+          <select name="category" required>
+            <option value="zapatillas">Zapatillas</option>
+            <option value="accesorios">Accesorios</option>
+          </select>
+        </div>
+
+        <div class="form__group">
+          <label>Precio (CLP) <span class="req">*</span></label>
+          <input type="number" name="price" required min="0" step="1" placeholder="89990">
+        </div>
+
+        <div class="form__group">
+          <label>Tag (opcional)</label>
+          <input type="text" name="tag" placeholder="Top, Nuevo, Travis Scott, GS...">
+        </div>
+
+        <div class="form__group">
+          <label>Tallas (separadas por coma)</label>
+          <input type="text" name="sizes" placeholder="38,39,40,41,42,43,44,45">
+        </div>
+
+        <div class="form__group form__group--full">
+          <label>Colores (separados por coma)</label>
+          <input type="text" name="colors" placeholder="Negro, Blanco, Azul">
+        </div>
+
+        <div class="form__group form__group--full">
+          <label>Descripción</label>
+          <textarea name="description" rows="3" placeholder="Describe el producto..."></textarea>
+        </div>
+
+        <div class="form__group form__row">
+          <label class="checkbox">
+            <input type="checkbox" name="featured">
+            <span>Destacado</span>
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" name="active" checked>
+            <span>Activo (visible en la web)</span>
+          </label>
+        </div>
+
+        <div class="form__actions form__group--full">
+          <button type="button" class="btn btn--ghost" data-close>Cancelar</button>
+          <button type="submit" class="btn btn--primary">Guardar producto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
