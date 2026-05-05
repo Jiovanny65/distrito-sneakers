@@ -53,6 +53,75 @@
 
     <main class="dashboard__main">
 
+      <nav class="tabs">
+        <button class="tab tab--active" data-tab="orders">📦 Pedidos</button>
+        <button class="tab" data-tab="products">👟 Productos</button>
+      </nav>
+
+      <!-- ============ TAB: PEDIDOS ============ -->
+      <section class="tab-panel tab-panel--active" data-panel="orders">
+
+        <div class="stats">
+          <div class="stat">
+            <span class="stat__label">Total pedidos</span>
+            <span class="stat__value" id="oStatTotal">—</span>
+          </div>
+          <div class="stat">
+            <span class="stat__label">Pendientes</span>
+            <span class="stat__value" id="oStatPending">—</span>
+          </div>
+          <div class="stat">
+            <span class="stat__label">Hoy</span>
+            <span class="stat__value" id="oStatToday">—</span>
+          </div>
+          <div class="stat stat--accent">
+            <span class="stat__label">Ventas mes</span>
+            <span class="stat__value" id="oStatMonth">—</span>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <input type="search" id="orderSearch" placeholder="Buscar por nombre, teléfono, producto..." class="toolbar__search">
+          <select id="orderFilterStatus" class="toolbar__select">
+            <option value="all">Todos los estados</option>
+            <option value="pending">Pendientes</option>
+            <option value="confirmed">Confirmados</option>
+            <option value="preparing">En preparación</option>
+            <option value="shipped">Enviados</option>
+            <option value="delivered">Entregados</option>
+            <option value="cancelled">Cancelados</option>
+          </select>
+          <select id="orderFilterPayment" class="toolbar__select">
+            <option value="all">Todos los pagos</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="mercadopago">Mercado Pago</option>
+          </select>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Fecha</th>
+                <th>Cliente</th>
+                <th>Producto</th>
+                <th>Total</th>
+                <th>Pago</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="ordersBody">
+              <tr><td colspan="8" class="table__empty">Cargando pedidos...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============ TAB: PRODUCTOS ============ -->
+      <section class="tab-panel" data-panel="products">
+
       <div class="stats">
         <div class="stat">
           <span class="stat__label">Total productos</span>
@@ -100,6 +169,8 @@
           </tbody>
         </table>
       </div>
+
+      </section>
 
     </main>
   </section>
@@ -183,6 +254,15 @@
           <button type="submit" class="btn btn--primary">Guardar producto</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ====== MODAL: ORDER DETAIL ====== -->
+  <div class="modal" id="orderModal" aria-hidden="true">
+    <div class="modal__overlay" data-close></div>
+    <div class="modal__dialog modal__dialog--wide">
+      <button class="modal__close" data-close>×</button>
+      <div id="orderModalBody">Cargando...</div>
     </div>
   </div>
 

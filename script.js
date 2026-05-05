@@ -321,8 +321,76 @@ function closeModal() {
   document.body.style.overflow = '';
 }
 
+// ============ CREAR PEDIDO EN SUPABASE ============
+async function createOrder({ form, product, paymentMethod }) {
+  const fd = new FormData(form);
+  const data = Object.fromEntries(fd.entries());
+  const isShoes = product.category === 'zapatillas';
+  const cantidad = parseInt(data.cantidad) || 1;
+  const total = product.price * cantidad;
+
+  let fullAddress;
+  if (data.entrega && data.entrega.startsWith('Envío')) {
+    fullAddress = [
+      data.calle, data.depto ? `(${data.depto})` : null,
+      data.comuna, data.region,
+      data.codigo_postal ? `CP ${data.codigo_postal}` : null,
+      'Chile'
+    ].filter(Boolean).join(', ');
+  }
+
+  // Para MP necesitamos un external_reference único para el webhook
+  const externalRef = paymentMethod === 'mercadopago'
+    ? (crypto.randomUUID ? `MP-${crypto.randomUUID()}` : `MP-${Date.now()}-${Math.random().toString(36).slice(2,10)}`)
+    : null;
+
+  const payload = {
+    customer_name:  data.nombre,
+    customer_phone: '+56 ' + (data.telefono || '').trim(),
+    customer_email: data.email || null,
+
+    product_id:        product.id,
+    product_name:      product.name,
+    product_image_url: product.image_url || null,
+    size:              isShoes ? data.talla : (data.tamano || null),
+    color:             data.color || null,
+    quality:           data.calidad || null,
+    quantity:          cantidad,
+    unit_price:        product.price,
+    total:             total,
+
+    delivery_method: data.entrega || null,
+    region:          data.region || null,
+    comuna:          data.comuna || null,
+    street:          data.calle || null,
+    apartment:       data.depto || null,
+    zip_code:        data.codigo_postal || null,
+    full_address:    fullAddress || null,
+    comments:        data.comentarios || null,
+
+    payment_method: paymentMethod,
+    mp_external_reference: externalRef,
+    status: 'pending'
+  };
+
+  const { data: order, error } = await sb
+    .from('orders')
+    .insert(payload)
+    .select('id, mp_external_reference')
+    .single();
+
+  if (error) {
+    console.error('No se pudo registrar el pedido:', error);
+    return null;
+  }
+  return order;
+}
+
 // ============ WHATSAPP MESSAGE ============
-function handleOrderSubmit(form, product) {
+async function handleOrderSubmit(form, product) {
+  // Registrar el pedido en Supabase (no bloquea si falla)
+  await createOrder({ form, product, paymentMethod: 'whatsapp' });
+
   const data = Object.fromEntries(new FormData(form).entries());
   const isShoes = product.category === 'zapatillas';
 
@@ -423,6 +491,12 @@ async function handleMercadoPago(form, product, btn) {
   btn.innerHTML = 'Conectando con Mercado Pago...';
 
   try {
+    // Registrar el pedido y obtener external_reference para MP
+    const order = await createOrder({ form, product, paymentMethod: 'mercadopago' });
+    if (order?.mp_external_reference) {
+      payload.externalReference = order.mp_external_reference;
+    }
+
     const res = await fetch('/api/create-preference', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

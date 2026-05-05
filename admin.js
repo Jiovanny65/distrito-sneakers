@@ -34,6 +34,8 @@ function showDashboard(user) {
   $('#loginScreen').hidden = true;
   $('#dashboard').hidden = false;
   $('#userEmail').textContent = user.email;
+  // Por defecto la primera tab es "Pedidos"
+  loadOrders();
   loadProducts();
 }
 
@@ -333,6 +335,287 @@ function toast(message, type = '') {
   clearTimeout(toastTimeout);
   toastTimeout = setTimeout(() => t.classList.remove('is-visible'), 3200);
 }
+
+// ============================================
+//   ORDERS / PEDIDOS
+// ============================================
+
+let allOrders = [];
+
+const STATUS_LABELS = {
+  pending:    'Pendiente',
+  confirmed:  'Confirmado',
+  preparing:  'En preparación',
+  shipped:    'Enviado',
+  delivered:  'Entregado',
+  cancelled:  'Cancelado'
+};
+
+const STATUS_FLOW = ['pending', 'confirmed', 'preparing', 'shipped', 'delivered'];
+
+function fmtCLP(n) {
+  return '$' + Number(n || 0).toLocaleString('es-CL');
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleString('es-CL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+function statusPill(status) {
+  return `<span class="status-pill status-pill--${status}">${STATUS_LABELS[status] || status}</span>`;
+}
+
+function paymentPill(pm) {
+  const label = pm === 'whatsapp' ? '💬 WhatsApp' : pm === 'mercadopago' ? '💳 Mercado Pago' : pm;
+  return `<span class="payment-pill payment-pill--${pm}">${label}</span>`;
+}
+
+async function loadOrders() {
+  const { data, error } = await sb
+    .from('orders')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    toast('Error cargando pedidos: ' + error.message, 'error');
+    return;
+  }
+  allOrders = data || [];
+  renderOrdersTable();
+  renderOrderStats();
+}
+
+function renderOrderStats() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  const pendings = allOrders.filter(o => o.status === 'pending').length;
+  const todayOrders = allOrders.filter(o => new Date(o.created_at) >= today).length;
+  const monthSales = allOrders
+    .filter(o => new Date(o.created_at) >= monthStart && o.status !== 'cancelled')
+    .reduce((s, o) => s + (o.total || 0), 0);
+
+  $('#oStatTotal').textContent   = allOrders.length;
+  $('#oStatPending').textContent = pendings;
+  $('#oStatToday').textContent   = todayOrders;
+  $('#oStatMonth').textContent   = fmtCLP(monthSales);
+}
+
+function renderOrdersTable() {
+  const tbody = $('#ordersBody');
+  const q = ($('#orderSearch').value || '').toLowerCase().trim();
+  const status = $('#orderFilterStatus').value;
+  const payment = $('#orderFilterPayment').value;
+
+  let list = allOrders;
+  if (status !== 'all')  list = list.filter(o => o.status === status);
+  if (payment !== 'all') list = list.filter(o => o.payment_method === payment);
+  if (q) list = list.filter(o => {
+    const hay = [
+      o.id, o.customer_name, o.customer_phone, o.product_name,
+      o.region, o.comuna, o.color, o.size
+    ].join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="table__empty">No hay pedidos.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = list.map(o => `
+    <tr data-order="${o.id}" style="cursor:pointer;">
+      <td><strong>#${o.id}</strong></td>
+      <td>${fmtDate(o.created_at)}</td>
+      <td class="table__name">
+        ${escapeHtml(o.customer_name)}
+        <small>${escapeHtml(o.customer_phone)}</small>
+      </td>
+      <td class="table__name">
+        ${escapeHtml(o.product_name)}
+        <small>${[o.size, o.color, o.quality].filter(Boolean).map(escapeHtml).join(' · ') || ''}</small>
+      </td>
+      <td class="table__price">${fmtCLP(o.total)}</td>
+      <td>${paymentPill(o.payment_method)}</td>
+      <td>${statusPill(o.status)}</td>
+      <td><button class="icon-btn" data-view="${o.id}" title="Ver">👁️</button></td>
+    </tr>
+  `).join('');
+}
+
+$('#orderSearch').addEventListener('input', renderOrdersTable);
+$('#orderFilterStatus').addEventListener('change', renderOrdersTable);
+$('#orderFilterPayment').addEventListener('change', renderOrdersTable);
+
+$('#ordersBody').addEventListener('click', (e) => {
+  const tr = e.target.closest('tr[data-order]');
+  if (!tr) return;
+  const id = tr.dataset.order;
+  openOrderModal(id);
+});
+
+const orderModal = $('#orderModal');
+
+async function openOrderModal(id) {
+  const order = allOrders.find(o => String(o.id) === String(id));
+  if (!order) return;
+
+  // Cargar eventos
+  const { data: events } = await sb
+    .from('order_events')
+    .select('*')
+    .eq('order_id', order.id)
+    .order('created_at', { ascending: true });
+
+  const phoneClean = (order.customer_phone || '').replace(/\D/g, '');
+  const waLink = `https://wa.me/${phoneClean}`;
+  const fullAddr = order.full_address || [order.street, order.comuna, order.region].filter(Boolean).join(', ');
+
+  $('#orderModalBody').innerHTML = `
+    <div class="order-detail__head">
+      <div class="order-detail__title">
+        <h2>Pedido #${order.id}</h2>
+        <small>Creado el ${fmtDate(order.created_at)} · Última actualización ${fmtDate(order.updated_at)}</small>
+      </div>
+      <div>${statusPill(order.status)}</div>
+    </div>
+
+    <div class="order-detail__grid">
+      <div>
+        <div class="order-card">
+          <h3>Producto</h3>
+          <div class="order-product">
+            ${order.product_image_url ? `<img src="${order.product_image_url}" alt="">` : '<div class="order-product__info" style="font-size:42px;">👟</div>'}
+            <div class="order-product__info">
+              <strong>${escapeHtml(order.product_name)}</strong>
+              <small>${[order.size && `Talla: ${order.size}`, order.color && `Color: ${order.color}`, order.quality && `Calidad: ${order.quality}`].filter(Boolean).join(' · ')}</small>
+              <small>Cantidad: ${order.quantity} · Unitario ${fmtCLP(order.unit_price)}</small>
+            </div>
+            <div class="order-total">${fmtCLP(order.total)}</div>
+          </div>
+        </div>
+
+        <div class="order-card">
+          <h3>Cliente</h3>
+          <dl>
+            <dt>Nombre:</dt><dd>${escapeHtml(order.customer_name)}</dd>
+            <dt>Teléfono:</dt><dd><a href="${waLink}" target="_blank">${escapeHtml(order.customer_phone)} 💬</a></dd>
+            ${order.customer_email ? `<dt>Email:</dt><dd>${escapeHtml(order.customer_email)}</dd>` : ''}
+          </dl>
+        </div>
+
+        <div class="order-card">
+          <h3>Entrega</h3>
+          <dl>
+            <dt>Método:</dt><dd>${escapeHtml(order.delivery_method || '—')}</dd>
+            ${fullAddr ? `<dt>Dirección:</dt><dd>${escapeHtml(fullAddr)} <button class="icon-btn" onclick="navigator.clipboard.writeText('${escapeHtml(fullAddr).replace(/'/g, "\\'")}')" title="Copiar">📋</button></dd>` : ''}
+            ${order.region   ? `<dt>Región:</dt><dd>${escapeHtml(order.region)}</dd>` : ''}
+            ${order.comuna   ? `<dt>Comuna:</dt><dd>${escapeHtml(order.comuna)}</dd>` : ''}
+            ${order.zip_code ? `<dt>CP:</dt><dd>${escapeHtml(order.zip_code)}</dd>` : ''}
+            ${order.comments ? `<dt>Comentarios:</dt><dd>${escapeHtml(order.comments)}</dd>` : ''}
+          </dl>
+        </div>
+      </div>
+
+      <div>
+        <div class="order-card">
+          <h3>Pago</h3>
+          <dl>
+            <dt>Método:</dt><dd>${paymentPill(order.payment_method)}</dd>
+            ${order.mp_payment_id ? `<dt>ID MP:</dt><dd>${escapeHtml(order.mp_payment_id)}</dd>` : ''}
+            ${order.mp_status    ? `<dt>Estado MP:</dt><dd>${escapeHtml(order.mp_status)}</dd>` : ''}
+            ${order.mp_external_reference ? `<dt>Ref:</dt><dd style="font-size:11px;">${escapeHtml(order.mp_external_reference)}</dd>` : ''}
+          </dl>
+        </div>
+
+        <div class="order-card">
+          <h3>Cambiar estado</h3>
+          <div class="status-changer" id="statusChanger">
+            ${STATUS_FLOW.map(s => `
+              <button class="status-btn ${order.status === s ? 'status-btn--current' : ''}" data-set-status="${s}">${STATUS_LABELS[s]}</button>
+            `).join('')}
+            <button class="status-btn ${order.status === 'cancelled' ? 'status-btn--current' : ''}" data-set-status="cancelled" style="border-color:#fee2e2;color:#991b1b;">${STATUS_LABELS.cancelled}</button>
+          </div>
+        </div>
+
+        <div class="order-card">
+          <h3>Notas internas</h3>
+          <textarea id="adminNotes" rows="3" style="width:100%;padding:9px;border:1.5px solid var(--gray-300);border-radius:8px;font-family:inherit;font-size:13px;">${escapeHtml(order.admin_notes || '')}</textarea>
+          <button class="btn btn--primary btn--sm" id="saveNotesBtn" style="margin-top:8px;">Guardar notas</button>
+        </div>
+
+        <div class="order-card">
+          <h3>Historial</h3>
+          <div class="timeline">
+            ${(events || []).map(ev => `
+              <div class="timeline-item">
+                <div class="timeline-item__time">${fmtDate(ev.created_at)} · ${escapeHtml(ev.actor || '')}</div>
+                <div class="timeline-item__desc">${escapeHtml(ev.description || ev.event_type)}</div>
+              </div>
+            `).join('') || '<p style="color:var(--gray-500);font-size:13px;">Sin eventos registrados.</p>'}
+          </div>
+        </div>
+
+        <button class="btn btn--ghost btn--sm" id="deleteOrderBtn" style="border-color:#fee2e2;color:#991b1b;width:100%;margin-top:8px;">🗑️ Eliminar pedido</button>
+      </div>
+    </div>
+  `;
+
+  // Status changer
+  $('#statusChanger').addEventListener('click', async (e) => {
+    const newStatus = e.target.dataset.setStatus;
+    if (!newStatus || newStatus === order.status) return;
+    const { error } = await sb.from('orders').update({ status: newStatus }).eq('id', order.id);
+    if (error) return toast('Error: ' + error.message, 'error');
+    toast('Estado actualizado', 'success');
+    closeOrderModal();
+    loadOrders();
+  });
+
+  // Save notes
+  $('#saveNotesBtn').addEventListener('click', async () => {
+    const notes = $('#adminNotes').value;
+    const { error } = await sb.from('orders').update({ admin_notes: notes }).eq('id', order.id);
+    if (error) return toast('Error: ' + error.message, 'error');
+    toast('Notas guardadas', 'success');
+  });
+
+  // Delete order
+  $('#deleteOrderBtn').addEventListener('click', async () => {
+    if (!confirm(`¿Eliminar pedido #${order.id} de ${order.customer_name}? Esta acción no se puede deshacer.`)) return;
+    const { error } = await sb.from('orders').delete().eq('id', order.id);
+    if (error) return toast('Error: ' + error.message, 'error');
+    toast('Pedido eliminado', 'success');
+    closeOrderModal();
+    loadOrders();
+  });
+
+  orderModal.classList.add('is-open');
+}
+
+function closeOrderModal() {
+  orderModal.classList.remove('is-open');
+}
+
+orderModal.addEventListener('click', (e) => {
+  if (e.target.matches('[data-close]')) closeOrderModal();
+});
+
+// ============================================
+//   TABS NAVIGATION
+// ============================================
+$$('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = btn.dataset.tab;
+    $$('.tab').forEach(b => b.classList.toggle('tab--active', b === btn));
+    $$('.tab-panel').forEach(p => p.classList.toggle('tab-panel--active', p.dataset.panel === target));
+
+    if (target === 'orders') loadOrders();
+    if (target === 'products') loadProducts();
+  });
+});
 
 // ============ INIT ============
 checkAuth();

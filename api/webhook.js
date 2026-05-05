@@ -69,9 +69,34 @@ export default async function handler(req, res) {
         status_detail: payment.status_detail,
         external_reference: payment.external_reference,
         amount: payment.transaction_amount,
-        payer: payment.payer?.email,
-        metadata: payment.metadata
+        payer: payment.payer?.email
       });
+
+      // Actualizar el pedido en Supabase via RPC mark_order_paid
+      const SUPABASE_URL = process.env.SUPABASE_URL || 'https://avxqwalugyjauwayxjvn.supabase.co';
+      const SUPABASE_ANON = process.env.SUPABASE_ANON_KEY || 'sb_publishable_jOwE3q-Tk7r_NZKmoaUBNA_CKHwQ9xT';
+
+      if (payment.external_reference) {
+        try {
+          const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/mark_order_paid`, {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_ANON,
+              'Authorization': `Bearer ${SUPABASE_ANON}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              p_external_ref: payment.external_reference,
+              p_payment_id:   String(payment.id),
+              p_status:       payment.status
+            })
+          });
+          const rpcData = await rpcRes.json();
+          console.log('Supabase order updated:', rpcData);
+        } catch (err) {
+          console.error('Failed to update order in Supabase:', err);
+        }
+      }
 
       // Aqui podrias guardar el pedido en Supabase si quisieras histórico:
       // await fetch('https://avxqwalugyjauwayxjvn.supabase.co/rest/v1/orders', {

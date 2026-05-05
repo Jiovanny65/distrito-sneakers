@@ -23,6 +23,7 @@ export default async function handler(req, res) {
   try {
     const body = req.body || {};
     const {
+      externalReference,
       productId,
       productName,
       productType,
@@ -137,7 +138,7 @@ export default async function handler(req, res) {
       } : undefined,
       auto_return: origin ? 'approved' : undefined,
       statement_descriptor: 'DistritoSneakers',
-      external_reference: `DS-${Date.now()}-${productId || 'x'}`
+      external_reference: externalReference || `DS-${Date.now()}-${productId || 'x'}`
     };
 
     const mpRes = await fetch('https://api.mercadopago.com/checkout/preferences', {
