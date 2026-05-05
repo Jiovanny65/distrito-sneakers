@@ -107,6 +107,44 @@ function setupFilters() {
 
 }
 
+// ============ HELPERS DE CALIDAD ============
+const QUALITY_LABELS = {
+  PK: 'PK · Perfect Kick',
+  G5: 'G5 · Alta gama',
+  OG: 'OG · Original'
+};
+
+function getQualityList(product) {
+  // Si el producto tiene precios por calidad, usamos esas keys.
+  // Si no, devolvemos las 3 calidades estandar con el precio base.
+  const qp = product.quality_prices;
+  if (qp && typeof qp === 'object' && Object.keys(qp).length) {
+    return Object.entries(qp).map(([k, v]) => ({
+      key: k,
+      label: QUALITY_LABELS[k] || k,
+      price: Number(v) || product.price
+    }));
+  }
+  return [
+    { key: 'PK', label: QUALITY_LABELS.PK, price: product.price },
+    { key: 'G5', label: QUALITY_LABELS.G5, price: product.price },
+    { key: 'OG', label: QUALITY_LABELS.OG, price: product.price }
+  ];
+}
+
+function buildQualityOptions(product) {
+  return getQualityList(product)
+    .map(q => `<option value="${q.key}" data-price="${q.price}">${q.label} — ${formatPrice(q.price)}</option>`)
+    .join('');
+}
+
+function getCurrentPrice(product, qualityKey) {
+  if (!qualityKey) return product.price;
+  const list = getQualityList(product);
+  const found = list.find(q => q.key === qualityKey);
+  return found ? found.price : product.price;
+}
+
 // ============ MODAL: PRODUCT DETAIL + FORM ============
 function openProductModal(productId) {
   const product = PRODUCTS.find(p => p.id === productId);
@@ -187,12 +225,11 @@ function openProductModal(productId) {
 
           <div class="form__group">
             <label>Calidad <span class="req">*</span></label>
-            <select name="calidad" required>
+            <select name="calidad" id="calidadSelect" required>
               <option value="">Selecciona calidad</option>
-              <option value="PK (Perfect Kick)">PK · Perfect Kick</option>
-              <option value="G5">G5 · Alta gama</option>
-              <option value="OG (Original)">OG · Original</option>
+              ${buildQualityOptions(product)}
             </select>
+            <small class="form__inline-hint" id="qualityHint" style="display:none;"></small>
           </div>
 
           <div class="form__group">
@@ -204,10 +241,10 @@ function openProductModal(productId) {
             <label>Método de entrega <span class="req">*</span></label>
             <select name="entrega" required id="entregaSelect">
               <option value="">Selecciona método</option>
-              <option value="Envío a domicilio (todo Chile)">Envío a domicilio (todo Chile)</option>
-              <option value="Retiro en sucursal">Retiro en sucursal</option>
-              <option value="Punto de encuentro">Punto de encuentro</option>
+              <option value="Envío a domicilio (todo Chile)">Envío a domicilio (todo Chile) 🇨🇱</option>
+              <option value="Punto de encuentro (Curicó)">Punto de encuentro (solo Curicó)</option>
             </select>
+            <small class="form__inline-hint" id="entregaHint" style="display:none;"></small>
           </div>
 
           <div class="form__group">
@@ -293,12 +330,31 @@ function openProductModal(productId) {
     });
   });
 
-  // Recalcular valor según cantidad
+  // Recalcular valor según calidad + cantidad
   const cantidadInput = body.querySelector('[name="cantidad"]');
-  const valorInput = body.querySelector('[name="valor"]');
-  cantidadInput.addEventListener('input', () => {
-    const qty = parseInt(cantidadInput.value) || 1;
-    valorInput.value = formatPrice(product.price * qty);
+  const valorInput    = body.querySelector('[name="valor"]');
+  const calidadSelect = body.querySelector('#calidadSelect');
+  const detailPriceEl = body.querySelector('.detail__price');
+
+  function recalcPrice() {
+    const qty   = parseInt(cantidadInput.value) || 1;
+    const qkey  = calidadSelect.value;
+    const unit  = getCurrentPrice(product, qkey);
+    valorInput.value = formatPrice(unit * qty);
+    if (qkey && detailPriceEl) detailPriceEl.textContent = formatPrice(unit);
+  }
+  cantidadInput.addEventListener('input', recalcPrice);
+  calidadSelect.addEventListener('change', recalcPrice);
+
+  // Aviso de "Punto de encuentro solo en Curicó"
+  const entregaHint = body.querySelector('#entregaHint');
+  entregaSelect.addEventListener('change', () => {
+    if (entregaSelect.value.startsWith('Punto')) {
+      entregaHint.style.display = 'block';
+      entregaHint.innerHTML = '⚠️ <strong>Solo disponible en Curicó.</strong> Coordinaremos punto y horario por WhatsApp.';
+    } else {
+      entregaHint.style.display = 'none';
+    }
   });
 
   // Submit -> WhatsApp
@@ -327,7 +383,8 @@ async function createOrder({ form, product, paymentMethod }) {
   const data = Object.fromEntries(fd.entries());
   const isShoes = product.category === 'zapatillas';
   const cantidad = parseInt(data.cantidad) || 1;
-  const total = product.price * cantidad;
+  const unitPrice = getCurrentPrice(product, data.calidad);
+  const total = unitPrice * cantidad;
 
   let fullAddress;
   if (data.entrega && data.entrega.startsWith('Envío')) {
@@ -356,7 +413,7 @@ async function createOrder({ form, product, paymentMethod }) {
     color:             data.color || null,
     quality:           data.calidad || null,
     quantity:          cantidad,
-    unit_price:        product.price,
+    unit_price:        unitPrice,
     total:             total,
 
     delivery_method: data.entrega || null,
@@ -395,7 +452,8 @@ async function handleOrderSubmit(form, product) {
   const isShoes = product.category === 'zapatillas';
 
   const cantidad = parseInt(data.cantidad) || 1;
-  const totalValor = formatPrice(product.price * cantidad);
+  const unitPrice = getCurrentPrice(product, data.calidad);
+  const totalValor = formatPrice(unitPrice * cantidad);
 
   let message = '*Hola, quiero realizar el siguiente pedido:*\n\n';
   message += `*Producto:* ${data.productName}\n`;
@@ -448,6 +506,7 @@ async function handleMercadoPago(form, product, btn) {
   const data = Object.fromEntries(fd.entries());
   const isShoes = product.category === 'zapatillas';
   const cantidad = parseInt(data.cantidad) || 1;
+  const unitPrice = getCurrentPrice(product, data.calidad);
 
   // Dirección estructurada (solo si es envío a domicilio)
   let direccionCompleta;
@@ -471,7 +530,7 @@ async function handleMercadoPago(form, product, btn) {
     color:       data.color,
     calidad:     data.calidad,
     cantidad:    cantidad,
-    precio:      product.price,
+    precio:      unitPrice,
     nombre:      data.nombre,
     telefono:    '+56 ' + (data.telefono || '').trim(),
     email:       data.email || undefined,

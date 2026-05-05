@@ -233,6 +233,11 @@ function openProductModal(product = null) {
     form.description.value = product.description || '';
     form.featured.checked  = !!product.featured;
     form.active.checked    = product.active !== false;
+    // Cargar precios por calidad si existen
+    const qp = product.quality_prices || {};
+    form.price_PK.value = qp.PK || '';
+    form.price_G5.value = qp.G5 || '';
+    form.price_OG.value = qp.OG || '';
     if (product.image_url) {
       $('#imgPreview').innerHTML = `<img src="${product.image_url}" alt="">`;
     }
@@ -240,6 +245,9 @@ function openProductModal(product = null) {
     $('#modalTitle').textContent = 'Nuevo producto';
     form.active.checked = true;
     form.sizes.value = '38, 39, 40, 41, 42, 43, 44, 45';
+    form.price_PK.value = '';
+    form.price_G5.value = '';
+    form.price_OG.value = '';
   }
 
   modal.classList.add('is-open');
@@ -296,17 +304,25 @@ $('#productForm').addEventListener('submit', async (e) => {
   const fd = new FormData(e.target);
   const id = fd.get('id');
 
+  // Construir quality_prices solo con las calidades que tienen valor
+  const qp = {};
+  ['PK', 'G5', 'OG'].forEach(k => {
+    const v = parseInt(fd.get('price_' + k), 10);
+    if (v > 0) qp[k] = v;
+  });
+
   const payload = {
-    name:        fd.get('name').trim(),
-    category:    fd.get('category'),
-    price:       parseInt(fd.get('price'), 10),
-    tag:         fd.get('tag').trim() || null,
-    image_url:   fd.get('image_url').trim() || null,
-    description: fd.get('description').trim() || null,
-    sizes:       splitCsv(fd.get('sizes')),
-    colors:      splitCsv(fd.get('colors')),
-    featured:    fd.get('featured') === 'on',
-    active:      fd.get('active') === 'on'
+    name:           fd.get('name').trim(),
+    category:       fd.get('category'),
+    price:          parseInt(fd.get('price'), 10),
+    quality_prices: Object.keys(qp).length ? qp : null,
+    tag:            fd.get('tag').trim() || null,
+    image_url:      fd.get('image_url').trim() || null,
+    description:    fd.get('description').trim() || null,
+    sizes:          splitCsv(fd.get('sizes')),
+    colors:         splitCsv(fd.get('colors')),
+    featured:       fd.get('featured') === 'on',
+    active:         fd.get('active') === 'on'
   };
 
   let result;
@@ -425,24 +441,27 @@ function renderOrdersTable() {
     return;
   }
 
-  tbody.innerHTML = list.map(o => `
+  tbody.innerHTML = list.map(o => {
+    const addrSummary = [o.comuna, o.region].filter(Boolean).join(', ') || (o.delivery_method && o.delivery_method.startsWith('Punto') ? 'Punto encuentro · Curicó' : '—');
+    return `
     <tr data-order="${o.id}" style="cursor:pointer;">
       <td><strong>#${o.id}</strong></td>
       <td>${fmtDate(o.created_at)}</td>
       <td class="table__name">
         ${escapeHtml(o.customer_name)}
-        <small>${escapeHtml(o.customer_phone)}</small>
+        <small>📞 ${escapeHtml(o.customer_phone)}${o.customer_email ? ' · ✉️ ' + escapeHtml(o.customer_email) : ''}</small>
+        <small>📍 ${escapeHtml(addrSummary)}</small>
       </td>
       <td class="table__name">
         ${escapeHtml(o.product_name)}
-        <small>${[o.size, o.color, o.quality].filter(Boolean).map(escapeHtml).join(' · ') || ''}</small>
+        <small>${[o.size && 'T' + o.size, o.color, o.quality].filter(Boolean).map(escapeHtml).join(' · ') || ''} · x${o.quantity}</small>
       </td>
       <td class="table__price">${fmtCLP(o.total)}</td>
       <td>${paymentPill(o.payment_method)}</td>
       <td>${statusPill(o.status)}</td>
       <td><button class="icon-btn" data-view="${o.id}" title="Ver">👁️</button></td>
     </tr>
-  `).join('');
+  `;}).join('');
 }
 
 $('#orderSearch').addEventListener('input', renderOrdersTable);

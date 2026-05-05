@@ -214,13 +214,34 @@
         </div>
 
         <div class="form__group">
-          <label>Precio (CLP) <span class="req">*</span></label>
+          <label>Precio base (CLP) <span class="req">*</span></label>
           <input type="number" name="price" required min="0" step="1" placeholder="89990">
         </div>
 
         <div class="form__group">
           <label>Tag (opcional)</label>
           <input type="text" name="tag" placeholder="Top, Nuevo, Travis Scott, GS...">
+        </div>
+
+        <div class="form__group form__group--full quality-prices-block">
+          <label>Precios por calidad (opcional — sobrescriben el precio base)</label>
+          <div class="quality-prices-grid">
+            <div class="qp-item">
+              <span class="qp-label">PK · Perfect Kick</span>
+              <input type="number" name="price_PK" min="0" step="1" placeholder="Ej: 89990">
+            </div>
+            <div class="qp-item">
+              <span class="qp-label">G5 · Alta gama</span>
+              <input type="number" name="price_G5" min="0" step="1" placeholder="Ej: 119990">
+            </div>
+            <div class="qp-item">
+              <span class="qp-label">OG · Original</span>
+              <input type="number" name="price_OG" min="0" step="1" placeholder="Ej: 199990">
+            </div>
+          </div>
+          <small style="color:var(--gray-500);font-size:12px;display:block;margin-top:6px;">
+            Si dejas estos campos vacíos, todas las calidades usarán el precio base.
+          </small>
         </div>
 
         <div class="form__group">
