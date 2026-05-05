@@ -108,28 +108,22 @@ function setupFilters() {
 }
 
 // ============ HELPERS DE CALIDAD ============
+const QUALITY_ORDER = ['OG', 'G5', 'PK'];
 const QUALITY_LABELS = {
-  PK: 'PK · Perfect Kick',
-  G5: 'G5 · Alta gama',
-  OG: 'OG · Original'
+  OG: 'OG',
+  G5: 'G5',
+  PK: 'PK'
 };
 
 function getQualityList(product) {
-  // Si el producto tiene precios por calidad, usamos esas keys.
-  // Si no, devolvemos las 3 calidades estandar con el precio base.
-  const qp = product.quality_prices;
-  if (qp && typeof qp === 'object' && Object.keys(qp).length) {
-    return Object.entries(qp).map(([k, v]) => ({
-      key: k,
-      label: QUALITY_LABELS[k] || k,
-      price: Number(v) || product.price
-    }));
-  }
-  return [
-    { key: 'PK', label: QUALITY_LABELS.PK, price: product.price },
-    { key: 'G5', label: QUALITY_LABELS.G5, price: product.price },
-    { key: 'OG', label: QUALITY_LABELS.OG, price: product.price }
-  ];
+  // Si el producto tiene precios por calidad, usamos esos.
+  // Si no, las 3 calidades estandar con el precio base.
+  const qp = product.quality_prices || {};
+  return QUALITY_ORDER.map(k => ({
+    key: k,
+    label: QUALITY_LABELS[k],
+    price: Number(qp[k]) || product.price
+  }));
 }
 
 function buildQualityOptions(product) {
@@ -214,14 +208,6 @@ function openProductModal(productId) {
               </select>
             </div>
           `}
-
-          <div class="form__group">
-            <label>Color <span class="req">*</span></label>
-            <select name="color" required>
-              <option value="">Selecciona color</option>
-              ${product.colors.map(c => `<option value="${c}">${c}</option>`).join('')}
-            </select>
-          </div>
 
           <div class="form__group">
             <label>Calidad <span class="req">*</span></label>
@@ -410,7 +396,6 @@ async function createOrder({ form, product, paymentMethod }) {
     product_name:      product.name,
     product_image_url: product.image_url || null,
     size:              isShoes ? data.talla : (data.tamano || null),
-    color:             data.color || null,
     quality:           data.calidad || null,
     quantity:          cantidad,
     unit_price:        unitPrice,
@@ -466,7 +451,6 @@ async function handleOrderSubmit(form, product) {
     if (data.tamano) message += `*Tamaño/Medida:* ${data.tamano}\n`;
   }
 
-  message += `*Color:* ${data.color}\n`;
   if (data.calidad) message += `*Calidad:* ${data.calidad}\n`;
   message += `*Cantidad:* ${cantidad}\n`;
   message += `*Valor:* ${totalValor}\n`;
@@ -527,7 +511,6 @@ async function handleMercadoPago(form, product, btn) {
     productType: isShoes ? 'Zapatilla' : 'Accesorio',
     modelo:      isShoes ? data.modelo : undefined,
     talla:       isShoes ? data.talla : data.tamano,
-    color:       data.color,
     calidad:     data.calidad,
     cantidad:    cantidad,
     precio:      unitPrice,
