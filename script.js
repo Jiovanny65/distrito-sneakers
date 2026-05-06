@@ -422,9 +422,12 @@ async function createOrder({ form, product, paymentMethod }) {
     .single();
 
   if (error) {
-    console.error('No se pudo registrar el pedido:', error);
+    console.error('[createOrder] Error guardando el pedido en Supabase:', error);
+    console.error('[createOrder] Payload que se intentó insertar:', payload);
+    // No bloquea el flujo del cliente, pero deja huella en la consola
     return null;
   }
+  console.log('[createOrder] Pedido registrado #' + order.id);
   return order;
 }
 
