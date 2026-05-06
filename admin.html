@@ -94,8 +94,10 @@
           <select id="orderFilterPayment" class="toolbar__select">
             <option value="all">Todos los pagos</option>
             <option value="whatsapp">WhatsApp</option>
+            <option value="manual">Manual (admin)</option>
             <option value="mercadopago">Mercado Pago</option>
           </select>
+          <button class="btn btn--primary btn--sm" id="newManualOrderBtn">+ Pedido manual</button>
         </div>
 
         <div class="table-wrap">
@@ -273,6 +275,150 @@
         <div class="form__actions form__group--full">
           <button type="button" class="btn btn--ghost" data-close>Cancelar</button>
           <button type="submit" class="btn btn--primary">Guardar producto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ====== MODAL: NUEVO PEDIDO MANUAL ====== -->
+  <div class="modal" id="manualOrderModal" aria-hidden="true">
+    <div class="modal__overlay" data-close></div>
+    <div class="modal__dialog modal__dialog--wide">
+      <button class="modal__close" data-close>×</button>
+      <h2>📝 Nuevo pedido manual</h2>
+      <p style="color:var(--gray-500); font-size:13.5px; margin-bottom:18px;">
+        Registra un pedido recibido por WhatsApp u otro canal directo.
+      </p>
+
+      <form id="manualOrderForm" class="form form--admin">
+
+        <h3 class="form-section-title">👤 Datos del cliente</h3>
+
+        <div class="form__group">
+          <label>Nombre completo <span class="req">*</span></label>
+          <input type="text" name="customer_name" required placeholder="Juan Pérez">
+        </div>
+
+        <div class="form__group">
+          <label>Teléfono <span class="req">*</span></label>
+          <input type="tel" name="customer_phone" required placeholder="+56 9 1234 5678">
+        </div>
+
+        <div class="form__group form__group--full">
+          <label>Email (opcional)</label>
+          <input type="email" name="customer_email" placeholder="cliente@ejemplo.com">
+        </div>
+
+        <h3 class="form-section-title">👟 Producto</h3>
+
+        <div class="form__group form__group--full">
+          <label>Modelo / Producto <span class="req">*</span></label>
+          <select name="product_id" id="manualProductSelect" required>
+            <option value="">Selecciona producto del catálogo o escribe manualmente</option>
+          </select>
+        </div>
+
+        <div class="form__group form__group--full" id="manualProductFreeText" style="display:none;">
+          <label>Nombre del producto manual</label>
+          <input type="text" name="product_name_manual" placeholder="Ej: Air Jordan 1 (no listado)">
+        </div>
+
+        <div class="form__group">
+          <label>Talla <span class="req">*</span></label>
+          <select name="size" required>
+            <option value="">Selecciona talla</option>
+            <option>36</option><option>37</option><option>38</option>
+            <option>39</option><option>40</option><option>41</option>
+            <option>42</option><option>43</option><option>44</option>
+            <option>45</option><option>46</option>
+          </select>
+        </div>
+
+        <div class="form__group">
+          <label>Calidad <span class="req">*</span></label>
+          <select name="quality" id="manualQuality" required>
+            <option value="">Selecciona calidad</option>
+            <option value="OG">OG</option>
+            <option value="G5">G5</option>
+            <option value="PK">PK</option>
+          </select>
+        </div>
+
+        <div class="form__group">
+          <label>Cantidad</label>
+          <input type="number" name="quantity" min="1" value="1">
+        </div>
+
+        <div class="form__group">
+          <label>Precio unitario (CLP) <span class="req">*</span></label>
+          <input type="number" name="unit_price" required min="0" step="1" placeholder="89990" id="manualUnitPrice">
+        </div>
+
+        <h3 class="form-section-title">📦 Entrega</h3>
+
+        <div class="form__group">
+          <label>Método de entrega</label>
+          <select name="delivery_method" id="manualDelivery">
+            <option value="">Sin definir</option>
+            <option value="Envío a domicilio (todo Chile)">Envío a domicilio</option>
+            <option value="Punto de encuentro (Curicó)">Punto de encuentro (Curicó)</option>
+          </select>
+        </div>
+
+        <div class="form__group">
+          <label>Estado del pedido</label>
+          <select name="status">
+            <option value="pending">Pendiente</option>
+            <option value="confirmed">Confirmado / Pagado</option>
+            <option value="preparing">En preparación</option>
+            <option value="shipped">Enviado</option>
+            <option value="delivered">Entregado</option>
+          </select>
+        </div>
+
+        <div id="manualAddressFields" style="display:none;" class="form__group--full">
+          <div class="form__group form__group--full">
+            <label>Calle y número</label>
+            <input type="text" name="street" placeholder="Av. Apoquindo 1234">
+          </div>
+          <div class="form__group form__group--full" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+            <div class="form__group">
+              <label>Comuna</label>
+              <input type="text" name="comuna" placeholder="Providencia">
+            </div>
+            <div class="form__group">
+              <label>Región</label>
+              <select name="region">
+                <option value="">—</option>
+                <option>Arica y Parinacota</option>
+                <option>Tarapacá</option>
+                <option>Antofagasta</option>
+                <option>Atacama</option>
+                <option>Coquimbo</option>
+                <option>Valparaíso</option>
+                <option>Metropolitana de Santiago</option>
+                <option>Libertador Gral. B. O'Higgins</option>
+                <option>Maule</option>
+                <option>Ñuble</option>
+                <option>Biobío</option>
+                <option>La Araucanía</option>
+                <option>Los Ríos</option>
+                <option>Los Lagos</option>
+                <option>Aysén del Gral. C. Ibáñez</option>
+                <option>Magallanes y Antártica Chilena</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form__group form__group--full">
+          <label>Notas / Comentarios (opcional)</label>
+          <textarea name="comments" rows="2" placeholder="Coordinado por WhatsApp · pago efectivo..."></textarea>
+        </div>
+
+        <div class="form__actions form__group--full">
+          <button type="button" class="btn btn--ghost" data-close>Cancelar</button>
+          <button type="submit" class="btn btn--primary">📥 Registrar pedido</button>
         </div>
       </form>
     </div>

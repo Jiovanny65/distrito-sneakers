@@ -34,7 +34,8 @@ async function loadProducts() {
     .select('*')
     .eq('active', true)
     .order('featured', { ascending: false })
-    .order('id', { ascending: true });
+    .order('id', { ascending: true })
+    .range(0, 9999);   // sin limite practico
 
   if (error) {
     console.error('Error cargando productos:', error);
@@ -68,8 +69,8 @@ function productCard(p) {
         <h3 class="product__name">${p.name}</h3>
         <p class="product__desc">${p.description}</p>
         <div class="product__footer">
-          <span class="product__price">${formatPrice(p.price)}</span>
-          <button class="product__btn" data-action="open" data-id="${p.id}">Comprar →</button>
+          <span class="product__price product__price--ask">Consultar por calidad</span>
+          <button class="product__btn" data-action="open" data-id="${p.id}">Ver →</button>
         </div>
       </div>
     </article>

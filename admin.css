@@ -538,6 +538,24 @@ h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; letter-spacing: -.02em; }
 }
 .modal__dialog--wide { max-width: 920px; }
 
+/* ====== FORM SECTION TITLE ====== */
+.form-section-title {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--blue);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-top: 6px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--gray-100);
+  font-family: 'Inter', sans-serif;
+}
+.form-section-title:first-of-type { margin-top: 0; }
+
+/* Pago "manual" pill */
+.payment-pill--manual { background: #fef3c7; color: #92400e; }
+
 /* ====== ORDER DETAIL ====== */
 .order-detail__head {
   display: flex;

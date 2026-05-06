@@ -106,7 +106,8 @@ async function loadProducts() {
   const { data, error } = await sb
     .from('products')
     .select('*')
-    .order('id', { ascending: true });
+    .order('id', { ascending: true })
+    .range(0, 9999);
 
   if (error) {
     toast('Error cargando productos: ' + error.message, 'error');
@@ -384,7 +385,12 @@ function statusPill(status) {
 }
 
 function paymentPill(pm) {
-  const label = pm === 'whatsapp' ? '💬 WhatsApp' : pm === 'mercadopago' ? '💳 Mercado Pago' : pm;
+  const labels = {
+    whatsapp:    '💬 WhatsApp',
+    manual:      '📝 Manual',
+    mercadopago: '💳 Mercado Pago'
+  };
+  const label = labels[pm] || pm;
   return `<span class="payment-pill payment-pill--${pm}">${label}</span>`;
 }
 
@@ -392,7 +398,8 @@ async function loadOrders() {
   const { data, error } = await sb
     .from('orders')
     .select('*')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .range(0, 9999);
 
   if (error) {
     toast('Error cargando pedidos: ' + error.message, 'error');
@@ -620,6 +627,156 @@ function closeOrderModal() {
 
 orderModal.addEventListener('click', (e) => {
   if (e.target.matches('[data-close]')) closeOrderModal();
+});
+
+// ============================================
+//   NUEVO PEDIDO MANUAL
+// ============================================
+const manualOrderModal = $('#manualOrderModal');
+
+function openManualOrderModal() {
+  const form = $('#manualOrderForm');
+  form.reset();
+  form.quantity.value = 1;
+  $('#manualAddressFields').style.display = 'none';
+  $('#manualProductFreeText').style.display = 'none';
+
+  // Llenar dropdown de productos del catálogo
+  const sel = $('#manualProductSelect');
+  sel.innerHTML = '<option value="">Selecciona producto del catálogo o escribe manualmente</option>';
+  allProducts
+    .filter(p => p.active !== false)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.dataset.name = p.name;
+      opt.dataset.price = p.price;
+      opt.dataset.qp = JSON.stringify(p.quality_prices || {});
+      opt.dataset.image = p.image_url || '';
+      opt.textContent = p.name + ' — ' + fmtCLP(p.price);
+      sel.appendChild(opt);
+    });
+  // Opción "manual"
+  const optManual = document.createElement('option');
+  optManual.value = '__manual__';
+  optManual.textContent = '📝 Otro producto (escribir manualmente)';
+  sel.appendChild(optManual);
+
+  manualOrderModal.classList.add('is-open');
+}
+
+function closeManualOrderModal() {
+  manualOrderModal.classList.remove('is-open');
+}
+
+// Botón abrir
+$('#newManualOrderBtn').addEventListener('click', openManualOrderModal);
+
+// Cerrar
+manualOrderModal.addEventListener('click', (e) => {
+  if (e.target.matches('[data-close]')) closeManualOrderModal();
+});
+
+// Mostrar/ocultar campo de producto manual
+$('#manualProductSelect').addEventListener('change', (e) => {
+  const sel = e.target;
+  const opt = sel.selectedOptions[0];
+
+  if (sel.value === '__manual__') {
+    $('#manualProductFreeText').style.display = 'flex';
+    return;
+  }
+  $('#manualProductFreeText').style.display = 'none';
+
+  // Pre-llenar precio según producto + calidad seleccionada
+  if (opt && opt.dataset.price) {
+    updateManualPrice();
+  }
+});
+
+// Cuando cambia calidad, actualizar precio
+$('#manualQuality').addEventListener('change', updateManualPrice);
+
+function updateManualPrice() {
+  const opt = $('#manualProductSelect').selectedOptions[0];
+  if (!opt || !opt.dataset.price) return;
+  const quality = $('#manualQuality').value;
+  let qp = {};
+  try { qp = JSON.parse(opt.dataset.qp || '{}'); } catch (e) { qp = {}; }
+  const price = (quality && qp[quality]) ? qp[quality] : Number(opt.dataset.price);
+  $('#manualUnitPrice').value = price;
+}
+
+// Mostrar/ocultar bloque de dirección
+$('#manualDelivery').addEventListener('change', (e) => {
+  $('#manualAddressFields').style.display = e.target.value.startsWith('Envío') ? 'block' : 'none';
+});
+
+// Submit
+$('#manualOrderForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+
+  // Resolver producto
+  const productSel = fd.get('product_id');
+  let productId = null;
+  let productName = '';
+  let productImage = null;
+
+  if (productSel === '__manual__') {
+    productName = (fd.get('product_name_manual') || '').trim();
+    if (!productName) return toast('Ingresa el nombre del producto manual', 'error');
+  } else if (productSel) {
+    const opt = $('#manualProductSelect').selectedOptions[0];
+    productId = parseInt(productSel, 10);
+    productName = opt.dataset.name;
+    productImage = opt.dataset.image || null;
+  } else {
+    return toast('Selecciona un producto', 'error');
+  }
+
+  const quantity = parseInt(fd.get('quantity'), 10) || 1;
+  const unitPrice = parseInt(fd.get('unit_price'), 10) || 0;
+  const total = unitPrice * quantity;
+
+  // Construir dirección completa si aplica
+  const delivery = fd.get('delivery_method');
+  const region   = fd.get('region') || '';
+  const comuna   = fd.get('comuna') || '';
+  const street   = fd.get('street') || '';
+  const fullAddress = (delivery && delivery.startsWith('Envío'))
+    ? [street, comuna, region, 'Chile'].filter(Boolean).join(', ')
+    : null;
+
+  const payload = {
+    customer_name:    fd.get('customer_name').trim(),
+    customer_phone:   fd.get('customer_phone').trim(),
+    customer_email:   fd.get('customer_email')?.trim() || null,
+    product_id:       productId,
+    product_name:     productName,
+    product_image_url: productImage,
+    size:             fd.get('size'),
+    quality:          fd.get('quality'),
+    quantity:         quantity,
+    unit_price:       unitPrice,
+    total:            total,
+    delivery_method:  delivery || null,
+    region:           region || null,
+    comuna:           comuna || null,
+    street:           street || null,
+    full_address:     fullAddress,
+    comments:         fd.get('comments')?.trim() || null,
+    payment_method:   'manual',
+    status:           fd.get('status') || 'pending'
+  };
+
+  const { error } = await sb.from('orders').insert(payload);
+  if (error) return toast('Error: ' + error.message, 'error');
+
+  toast('Pedido manual registrado ✓', 'success');
+  closeManualOrderModal();
+  loadOrders();
 });
 
 // ============================================

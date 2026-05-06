@@ -732,6 +732,14 @@ h1, h2, h3, h4 {
   font-family: 'Space Grotesk', sans-serif;
   color: var(--black);
 }
+.product__price--ask {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--blue);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-family: 'Inter', sans-serif;
+}
 .product__btn {
   padding: 9px 16px;
   background: var(--black);
