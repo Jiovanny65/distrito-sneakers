@@ -416,20 +416,19 @@ async function createOrder({ form, product, paymentMethod }) {
     status: 'pending'
   };
 
-  const { data: order, error } = await sb
+  // INSERT sin .select() para evitar RLS de SELECT (anon no puede leer)
+  const { error } = await sb
     .from('orders')
-    .insert(payload)
-    .select('id, mp_external_reference')
-    .single();
+    .insert(payload);
 
   if (error) {
     console.error('[createOrder] Error guardando el pedido en Supabase:', error);
     console.error('[createOrder] Payload que se intentó insertar:', payload);
-    // No bloquea el flujo del cliente, pero deja huella en la consola
     return null;
   }
-  console.log('[createOrder] Pedido registrado #' + order.id);
-  return order;
+  console.log('[createOrder] Pedido registrado ✓ (externalRef:', externalRef, ')');
+  // Devolvemos los datos generados localmente (no leemos de la DB)
+  return { mp_external_reference: externalRef };
 }
 
 // ============ WHATSAPP MESSAGE ============
