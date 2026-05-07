@@ -117,27 +117,31 @@ const QUALITY_LABELS = {
 };
 
 function getQualityList(product) {
-  // Si el producto tiene precios por calidad, usamos esos.
-  // Si no, las 3 calidades estandar con el precio base.
+  // Solo calidades que tienen precio configurado en quality_prices.
   const qp = product.quality_prices || {};
-  return QUALITY_ORDER.map(k => ({
-    key: k,
-    label: QUALITY_LABELS[k],
-    price: Number(qp[k]) || product.price
-  }));
+  return QUALITY_ORDER
+    .filter(k => qp[k] && Number(qp[k]) > 0)
+    .map(k => ({
+      key: k,
+      label: QUALITY_LABELS[k],
+      price: Number(qp[k])
+    }));
 }
 
 function buildQualityOptions(product) {
-  return getQualityList(product)
+  const list = getQualityList(product);
+  if (list.length === 0) {
+    return '<option value="" disabled>Consulta calidad y precio por WhatsApp</option>';
+  }
+  return list
     .map(q => `<option value="${q.key}" data-price="${q.price}">${q.label} — ${formatPrice(q.price)}</option>`)
     .join('');
 }
 
 function getCurrentPrice(product, qualityKey) {
-  if (!qualityKey) return product.price;
-  const list = getQualityList(product);
-  const found = list.find(q => q.key === qualityKey);
-  return found ? found.price : product.price;
+  if (!qualityKey) return 0;
+  const qp = product.quality_prices || {};
+  return Number(qp[qualityKey]) || 0;
 }
 
 // ============ MODAL: PRODUCT DETAIL + FORM ============
@@ -163,7 +167,7 @@ function openProductModal(productId) {
       <div class="detail__content">
         <span class="detail__cat">${product.category}</span>
         <h2 class="detail__title">${product.name}</h2>
-        <div class="detail__price">${formatPrice(product.price)}</div>
+        <div class="detail__price" id="detailPrice"><span class="detail__price-hint">Selecciona una calidad para ver el precio</span></div>
         <p class="detail__desc">${product.description}</p>
 
         <form class="form" id="orderForm" novalidate>
@@ -235,8 +239,8 @@ function openProductModal(productId) {
           </div>
 
           <div class="form__group">
-            <label>Valor</label>
-            <input type="text" name="valor" value="${formatPrice(product.price)}" readonly>
+            <label>Valor total</label>
+            <input type="text" name="valor" value="" placeholder="Selecciona una calidad" readonly>
           </div>
 
           <div class="form__group form__group--full address-block" id="direccionGroup" style="display:none;">
@@ -324,11 +328,17 @@ function openProductModal(productId) {
   const detailPriceEl = body.querySelector('.detail__price');
 
   function recalcPrice() {
-    const qty   = parseInt(cantidadInput.value) || 1;
-    const qkey  = calidadSelect.value;
-    const unit  = getCurrentPrice(product, qkey);
+    const qty  = parseInt(cantidadInput.value) || 1;
+    const qkey = calidadSelect.value;
+    if (!qkey) {
+      // Sin calidad: campos vacíos
+      valorInput.value = '';
+      if (detailPriceEl) detailPriceEl.innerHTML = '<span class="detail__price-hint">Selecciona una calidad para ver el precio</span>';
+      return;
+    }
+    const unit = getCurrentPrice(product, qkey);
     valorInput.value = formatPrice(unit * qty);
-    if (qkey && detailPriceEl) detailPriceEl.textContent = formatPrice(unit);
+    if (detailPriceEl) detailPriceEl.textContent = formatPrice(unit);
   }
   cantidadInput.addEventListener('input', recalcPrice);
   calidadSelect.addEventListener('change', recalcPrice);

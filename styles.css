@@ -1164,6 +1164,14 @@ h1, h2, h3, h4 {
   font-family: 'Space Grotesk', sans-serif;
   color: var(--blue);
   margin-bottom: 18px;
+  min-height: 38px;
+}
+.detail__price-hint {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-500);
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0;
 }
 .detail__desc {
   color: var(--gray-700);

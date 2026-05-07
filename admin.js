@@ -226,7 +226,6 @@ function openProductModal(product = null) {
     form.id.value          = product.id;
     form.name.value        = product.name || '';
     form.category.value    = product.category || 'zapatillas';
-    form.price.value       = product.price || '';
     form.tag.value         = product.tag || '';
     form.image_url.value   = product.image_url || '';
     form.sizes.value       = (product.sizes || []).join(', ');
@@ -234,7 +233,6 @@ function openProductModal(product = null) {
     form.description.value = product.description || '';
     form.featured.checked  = !!product.featured;
     form.active.checked    = product.active !== false;
-    // Cargar precios por calidad si existen
     const qp = product.quality_prices || {};
     form.price_PK.value = qp.PK || '';
     form.price_G5.value = qp.G5 || '';
@@ -312,11 +310,19 @@ $('#productForm').addEventListener('submit', async (e) => {
     if (v > 0) qp[k] = v;
   });
 
+  if (Object.keys(qp).length === 0) {
+    return toast('Define al menos un precio por calidad (OG, G5 o PK)', 'error');
+  }
+
+  // El campo 'price' del schema se autocompleta con el precio menor (para
+  // mantener compatibilidad con queries antiguas que filtran/ordenan por price).
+  const minPrice = Math.min(...Object.values(qp));
+
   const payload = {
     name:           fd.get('name').trim(),
     category:       fd.get('category'),
-    price:          parseInt(fd.get('price'), 10),
-    quality_prices: Object.keys(qp).length ? qp : null,
+    price:          minPrice,
+    quality_prices: qp,
     tag:            fd.get('tag').trim() || null,
     image_url:      fd.get('image_url').trim() || null,
     description:    fd.get('description').trim() || null,
