@@ -33,7 +33,6 @@
       <nav class="nav" id="nav">
         <a href="#inicio">Inicio</a>
         <a href="#modelos">Modelos</a>
-        <a href="#catalogo">Catálogo</a>
         <a href="#destacados">Destacados</a>
         <a href="#tallas">Guía de tallas</a>
         <a href="#faq">FAQ</a>
@@ -63,7 +62,7 @@
         Envíos a todo Chile con rastreo online.<br>
         En 2 a 4 semanas hábiles tendrás tu par en tus manos.</p>
         <div class="hero__cta">
-          <a href="#catalogo" class="btn btn--primary">Ver catálogo</a>
+          <a href="#modelos" class="btn btn--primary">Ver categorías</a>
           <a href="#destacados" class="btn btn--ghost">Destacados</a>
         </div>
         <div class="hero__stats">
@@ -119,19 +118,15 @@
     </div>
   </section>
 
-  <!-- ============ CATÁLOGO ============ -->
-  <section class="section" id="catalogo">
+  <!-- ============ RESULTADOS DE CATEGORÍA (oculto hasta que clickeen una) ============ -->
+  <section class="section" id="catalogo" hidden>
     <div class="container">
       <div class="section__head section__head--row">
         <div>
-          <h2>Catálogo completo</h2>
-          <p>Filtra por categoría y descubre tu próximo favorito.</p>
+          <h2 id="catResultsTitle">Modelos</h2>
+          <p id="catResultsHint">Selecciona un modelo arriba.</p>
         </div>
-        <div class="filters" id="filters">
-          <button class="chip chip--active" data-filter="all">Todos</button>
-          <button class="chip" data-filter="travis">Travis Scott</button>
-          <button class="chip" data-filter="gs">Grade School (GS)</button>
-        </div>
+        <a href="#modelos" class="btn btn--ghost btn--sm" id="backToCategoriesBtn">← Volver a categorías</a>
       </div>
       <div class="grid" id="catalogGrid"></div>
     </div>
@@ -299,7 +294,7 @@
       <div class="footer__cols">
         <div>
           <h4>Tienda</h4>
-          <a href="#catalogo">Catálogo</a>
+          <a href="#modelos">Modelos</a>
           <a href="#destacados">Destacados</a>
           <a href="#beneficios">Beneficios</a>
         </div>

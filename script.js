@@ -30,10 +30,10 @@ let PRODUCTS   = [];
 let CATEGORIES = [];
 
 async function loadProducts() {
+  // Carga TODOS los productos. La visibilidad por seccion se filtra en render.
   const { data, error } = await sb
     .from('products')
     .select('*')
-    .eq('active', true)
     .order('featured', { ascending: false })
     .order('id', { ascending: true })
     .range(0, 9999);
@@ -91,22 +91,13 @@ function productCard(p) {
   `;
 }
 
-function renderCatalog(filter = 'all') {
-  const grid = $('#catalogGrid');
-  let filtered = PRODUCTS;
-  if (filter === 'travis') {
-    filtered = PRODUCTS.filter(p => /travis|cactus jack|fragment/i.test(p.name));
-  } else if (filter === 'gs') {
-    filtered = PRODUCTS.filter(p => /^\(GS\)/i.test(p.name));
-  } else if (filter !== 'all') {
-    filtered = PRODUCTS.filter(p => p.category === filter);
-  }
-  grid.innerHTML = filtered.map(productCard).join('');
-}
+// renderCatalog removido — el catálogo completo ya no existe.
+// El listado de productos solo se muestra al seleccionar una categoría
+// vía applyCategoryFromHash() / renderCatalogByCategory().
 
 function renderFeatured() {
   const grid = $('#featuredGrid');
-  const featured = PRODUCTS.filter(p => p.featured);
+  const featured = PRODUCTS.filter(p => p.featured && p.active !== false);
   grid.innerHTML = featured.map(productCard).join('');
 }
 
@@ -137,58 +128,51 @@ function renderCategories() {
 // Manejo de hash routing #cat=slug
 function applyCategoryFromHash() {
   const m = (location.hash || '').match(/cat=([^&]+)/);
-  if (!m) return false;
+  const section = $('#catalogo');
+  if (!m) {
+    if (section) section.hidden = true;
+    return false;
+  }
   const slug = decodeURIComponent(m[1]);
   const cat = CATEGORIES.find(c => c.slug === slug);
-  if (!cat) return false;
-
-  // Setear chip "Categoría: X" en filtros
-  const chipsContainer = $('#filters');
-  $$('#filters .chip').forEach(c => c.classList.remove('chip--active'));
-  // Crear chip dinámico si no existe
-  let activeChip = chipsContainer.querySelector('[data-cat-id="' + cat.id + '"]');
-  if (!activeChip) {
-    activeChip = document.createElement('button');
-    activeChip.className = 'chip chip--active chip--cat-active';
-    activeChip.dataset.filter = 'cat:' + cat.id;
-    activeChip.dataset.catId  = cat.id;
-    activeChip.textContent = '× ' + cat.name;
-    activeChip.addEventListener('click', () => {
-      activeChip.remove();
-      history.replaceState(null, '', location.pathname);
-      $('#filters [data-filter="all"]').classList.add('chip--active');
-      renderCatalog('all');
-    });
-    chipsContainer.appendChild(activeChip);
-  } else {
-    activeChip.classList.add('chip--active');
+  if (!cat) {
+    if (section) section.hidden = true;
+    return false;
   }
 
+  // Mostrar la sección de resultados
+  if (section) section.hidden = false;
+
+  // Título dinámico
+  const title = $('#catResultsTitle');
+  const hint  = $('#catResultsHint');
+  if (title) title.textContent = cat.name;
+
   renderCatalogByCategory(cat.id);
+
+  if (hint) {
+    const count = PRODUCTS.filter(p => p.category_id === cat.id).length;
+    hint.textContent = count + (count === 1 ? ' modelo disponible' : ' modelos disponibles');
+  }
+
   // Scroll al catálogo
   setTimeout(() => {
-    document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 100);
+    section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 80);
   return true;
 }
 
 function renderCatalogByCategory(catId) {
   const grid = $('#catalogGrid');
+  // Mostramos TODOS los productos de la categoría, incluso si están "ocultos" (active=false).
   const filtered = PRODUCTS.filter(p => p.category_id === catId);
   grid.innerHTML = filtered.length
     ? filtered.map(productCard).join('')
-    : '<p style="grid-column:1/-1;text-align:center;color:var(--gray-500); padding:40px;">No hay productos en este modelo todavía.</p>';
+    : '<p style="grid-column:1/-1;text-align:center;color:var(--gray-500); padding:40px;">Aún no hay zapatillas en este modelo. Vuelve pronto o consúltanos por WhatsApp.</p>';
 }
 
-// ============ FILTERS ============
+// setupFilters: noop — los chips estáticos del catálogo ya no existen.
 function setupFilters() {
-  $$('#filters .chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      $$('#filters .chip').forEach(c => c.classList.remove('chip--active'));
-      chip.classList.add('chip--active');
-      renderCatalog(chip.dataset.filter);
-    });
-  });
 
 }
 
@@ -693,23 +677,18 @@ function setupEvents() {
 // ============ INIT ============
 document.addEventListener('DOMContentLoaded', async () => {
   setupEvents();
-  setupFilters();
-
-  // Skeleton mientras cargan
-  $('#catalogGrid').innerHTML = '<p style="grid-column:1/-1;text-align:center;color:var(--gray-500);">Cargando productos...</p>';
+  // Skeleton mientras cargan los modelos
   $('#featuredGrid').innerHTML = '';
 
   await Promise.all([loadProducts(), loadCategories()]);
   renderFeatured();
   renderCategories();
 
-  // Si hay hash #cat=slug, aplicar filtro; si no, render normal
-  if (!applyCategoryFromHash()) {
-    renderCatalog();
-  }
+  // Si hay hash #cat=slug, abrir esa categoría; si no, dejar la sección oculta
+  applyCategoryFromHash();
 
-  // Reaccionar a cambios de hash (cuando el usuario clickea otra cat)
+  // Reaccionar a cambios de hash (clicks en otras categorías)
   window.addEventListener('hashchange', () => {
-    applyCategoryFromHash() || renderCatalog();
+    applyCategoryFromHash();
   });
 });
