@@ -34,6 +34,7 @@ async function loadProducts() {
   const { data, error } = await sb
     .from('products')
     .select('*')
+    .order('display_order', { ascending: true, nullsFirst: false })
     .order('featured', { ascending: false })
     .order('id', { ascending: true })
     .range(0, 9999);
@@ -49,8 +50,9 @@ async function loadCategories() {
   const { data, error } = await sb
     .from('categories')
     .select('*')
+    .order('display_order', { ascending: true, nullsFirst: false })
     .order('name', { ascending: true })
-    .range(0, 999);
+    .range(0, 9999);
   if (error) {
     console.error('Error cargando categorías:', error);
     return;

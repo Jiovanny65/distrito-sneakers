@@ -107,6 +107,7 @@ async function loadProducts() {
   const { data, error } = await sb
     .from('products')
     .select('*')
+    .order('display_order', { ascending: true, nullsFirst: false })
     .order('id', { ascending: true })
     .range(0, 9999);
 
@@ -806,8 +807,9 @@ async function loadCategories() {
   const { data, error } = await sb
     .from('categories')
     .select('*')
+    .order('display_order', { ascending: true, nullsFirst: false })
     .order('name', { ascending: true })
-    .range(0, 999);
+    .range(0, 9999);  // Sin límite práctico
 
   if (error) {
     toast('Error cargando categorías: ' + error.message, 'error');
@@ -834,10 +836,17 @@ function renderCategoriesGrid() {
     return;
   }
 
-  grid.innerHTML = allCategories.map(c => {
+  grid.innerHTML = allCategories.map((c, idx) => {
     const count = allProducts.filter(p => p.category_id === c.id).length;
+    const isFirst = idx === 0;
+    const isLast  = idx === allCategories.length - 1;
     return `
       <div class="cat-card-admin" data-cat-id="${c.id}">
+        <div class="cat-card-admin__order">
+          <button class="ord-btn" data-move-cat="up" data-id="${c.id}" ${isFirst ? 'disabled' : ''} title="Subir">▲</button>
+          <span class="ord-pos">${idx + 1}</span>
+          <button class="ord-btn" data-move-cat="down" data-id="${c.id}" ${isLast ? 'disabled' : ''} title="Bajar">▼</button>
+        </div>
         <div class="cat-card-admin__image ${!c.image_url ? 'cat-card-admin__image--empty' : ''}">
           ${c.image_url ? `<img src="${c.image_url}" alt="${escapeHtml(c.name)}">` : '🗂️'}
         </div>
@@ -852,10 +861,47 @@ function renderCategoriesGrid() {
   }).join('');
 }
 
-$('#categoriesGrid').addEventListener('click', (e) => {
+$('#categoriesGrid').addEventListener('click', async (e) => {
+  // Botones de orden — manejan ellos solos, no abrir modal
+  const moveBtn = e.target.closest('[data-move-cat]');
+  if (moveBtn) {
+    e.stopPropagation();
+    const id  = parseInt(moveBtn.dataset.id, 10);
+    const dir = moveBtn.dataset.moveCat; // 'up' | 'down'
+    await reorderCategory(id, dir);
+    return;
+  }
   const card = e.target.closest('[data-cat-id]');
   if (card) openCategoryModal(parseInt(card.dataset.catId, 10));
 });
+
+async function reorderCategory(id, dir) {
+  const idx = allCategories.findIndex(c => c.id === id);
+  if (idx < 0) return;
+  const targetIdx = dir === 'up' ? idx - 1 : idx + 1;
+  if (targetIdx < 0 || targetIdx >= allCategories.length) return;
+
+  const a = allCategories[idx];
+  const b = allCategories[targetIdx];
+
+  // Calcular nuevos orders
+  const aOrder = (a.display_order ?? idx * 10) || (idx * 10);
+  const bOrder = (b.display_order ?? targetIdx * 10) || (targetIdx * 10);
+
+  const updates = [
+    sb.from('categories').update({ display_order: bOrder }).eq('id', a.id),
+    sb.from('categories').update({ display_order: aOrder }).eq('id', b.id)
+  ];
+  const results = await Promise.all(updates);
+  const err = results.find(r => r.error);
+  if (err) return toast('Error reordenando: ' + err.error.message, 'error');
+
+  // Actualizar localmente y re-render
+  a.display_order = bOrder;
+  b.display_order = aOrder;
+  allCategories.sort((x, y) => (x.display_order ?? 0) - (y.display_order ?? 0));
+  renderCategoriesGrid();
+}
 
 const categoryModal = $('#categoryModal');
 
@@ -930,39 +976,70 @@ $('#catImgUrl').addEventListener('input', (e) => {
   if (url) $('#catImgPreview').innerHTML = `<img src="${url}" alt="" onerror="this.style.display='none'">`;
 });
 
-// Lista de productos asignables
+// Lista de productos asignables — los asignados van arriba con flechas de orden
 function renderCatProductsList(currentCatId) {
   const list = $('#catProductsList');
   const q = ($('#catProductSearch').value || '').toLowerCase();
 
-  const filtered = allProducts
-    .filter(p => p.active !== false)
+  // Asignados a ESTA categoría: en el orden de display_order
+  const assigned = allProducts
+    .filter(p => p.category_id === currentCatId)
+    .filter(p => !q || p.name.toLowerCase().includes(q))
+    .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+
+  // No asignados o de otra categoría: alfabético
+  const others = allProducts
+    .filter(p => p.category_id !== currentCatId)
     .filter(p => !q || p.name.toLowerCase().includes(q))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  list.innerHTML = filtered.map(p => {
-    const isChecked = p.category_id === currentCatId;
-    const otherCat = !isChecked && p.category_id
-      ? allCategories.find(c => c.id === p.category_id)
-      : null;
+  const html = [];
+  if (assigned.length) {
+    html.push('<div class="cat-products-section-title">📦 Productos en esta categoría (arrastra ▲▼ para ordenar)</div>');
+    html.push(...assigned.map((p, i) => prodRow(p, currentCatId, i, assigned.length)));
+  }
+  if (others.length) {
+    html.push('<div class="cat-products-section-title">➕ Disponibles para agregar</div>');
+    html.push(...others.map(p => prodRow(p, currentCatId)));
+  }
+  if (!html.length) {
+    html.push('<p style="padding:14px; color:var(--gray-500); font-size:13px; text-align:center;">No hay productos.</p>');
+  }
 
-    return `
-      <div class="cat-product-row ${isChecked ? 'is-checked' : ''}" data-prod-id="${p.id}">
-        <div class="cat-product-row__check">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-        </div>
-        ${p.image_url
-          ? `<img src="${p.image_url}" class="cat-product-row__img" alt="">`
-          : `<div class="cat-product-row__img" style="display:grid;place-items:center;font-size:18px;">👟</div>`}
-        <div class="cat-product-row__info">
-          <div class="cat-product-row__name">${escapeHtml(p.name)}</div>
-          <div class="cat-product-row__hint ${otherCat ? 'cat-product-row__hint--warn' : ''}">
-            ${otherCat ? `Actualmente en: ${escapeHtml(otherCat.name)}` : (isChecked ? 'Asignado' : 'Sin categoría')}
-          </div>
+  list.innerHTML = html.join('');
+}
+
+function prodRow(p, currentCatId, idx, total) {
+  const isChecked = p.category_id === currentCatId;
+  const otherCat = !isChecked && p.category_id
+    ? allCategories.find(c => c.id === p.category_id)
+    : null;
+
+  const showArrows = isChecked && idx !== undefined;
+  const isFirst = showArrows && idx === 0;
+  const isLast  = showArrows && idx === total - 1;
+
+  return `
+    <div class="cat-product-row ${isChecked ? 'is-checked' : ''}" data-prod-id="${p.id}">
+      ${showArrows ? `
+        <div class="cat-product-row__order" onclick="event.stopPropagation()">
+          <button type="button" class="ord-btn ord-btn--sm" data-move-prod="up"   data-id="${p.id}" ${isFirst ? 'disabled' : ''}>▲</button>
+          <button type="button" class="ord-btn ord-btn--sm" data-move-prod="down" data-id="${p.id}" ${isLast  ? 'disabled' : ''}>▼</button>
+        </div>` : ''}
+      <div class="cat-product-row__check">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+      </div>
+      ${p.image_url
+        ? `<img src="${p.image_url}" class="cat-product-row__img" alt="">`
+        : `<div class="cat-product-row__img" style="display:grid;place-items:center;font-size:18px;">👟</div>`}
+      <div class="cat-product-row__info">
+        <div class="cat-product-row__name">${escapeHtml(p.name)}</div>
+        <div class="cat-product-row__hint ${otherCat ? 'cat-product-row__hint--warn' : ''}">
+          ${otherCat ? `Actualmente en: ${escapeHtml(otherCat.name)}` : (isChecked ? `#${(idx ?? 0) + 1} en la categoría` : 'Sin categoría')}
         </div>
       </div>
-    `;
-  }).join('') || '<p style="padding:14px; color:var(--gray-500); font-size:13px; text-align:center;">No hay productos.</p>';
+    </div>
+  `;
 }
 
 $('#catProductSearch').addEventListener('input', () => {
@@ -970,12 +1047,53 @@ $('#catProductSearch').addEventListener('input', () => {
   renderCatProductsList(id);
 });
 
-// Toggle producto en categoría
-$('#catProductsList').addEventListener('click', (e) => {
+// Click en la lista: orden (botones) o toggle (fila)
+$('#catProductsList').addEventListener('click', async (e) => {
+  // Botones de orden ▲▼
+  const moveBtn = e.target.closest('[data-move-prod]');
+  if (moveBtn) {
+    e.stopPropagation();
+    e.preventDefault();
+    const id  = parseInt(moveBtn.dataset.id, 10);
+    const dir = moveBtn.dataset.moveProd;
+    const currentCatId = parseInt($('#categoryForm').id.value, 10);
+    await reorderProductInCategory(id, dir, currentCatId);
+    return;
+  }
+  // Click en la fila → toggle
   const row = e.target.closest('[data-prod-id]');
   if (!row) return;
   row.classList.toggle('is-checked');
 });
+
+async function reorderProductInCategory(id, dir, catId) {
+  const inCat = allProducts
+    .filter(p => p.category_id === catId)
+    .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+
+  const idx = inCat.findIndex(p => p.id === id);
+  if (idx < 0) return;
+  const targetIdx = dir === 'up' ? idx - 1 : idx + 1;
+  if (targetIdx < 0 || targetIdx >= inCat.length) return;
+
+  const a = inCat[idx];
+  const b = inCat[targetIdx];
+
+  const aOrder = a.display_order ?? (idx * 10);
+  const bOrder = b.display_order ?? (targetIdx * 10);
+
+  const r1 = await sb.from('products').update({ display_order: bOrder }).eq('id', a.id);
+  const r2 = await sb.from('products').update({ display_order: aOrder }).eq('id', b.id);
+  if (r1.error || r2.error) return toast('Error reordenando producto', 'error');
+
+  // Sincronizar en memoria
+  const aLocal = allProducts.find(p => p.id === a.id);
+  const bLocal = allProducts.find(p => p.id === b.id);
+  if (aLocal) aLocal.display_order = bOrder;
+  if (bLocal) bLocal.display_order = aOrder;
+
+  renderCatProductsList(catId);
+}
 
 // Submit
 $('#categoryForm').addEventListener('submit', async (e) => {
