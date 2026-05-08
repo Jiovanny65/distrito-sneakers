@@ -25,8 +25,9 @@ const REGIONES_CHILE = [
   'Magallanes y Antártica Chilena'
 ];
 
-// ============ DATA: PRODUCTOS (Supabase) ============
-let PRODUCTS = [];
+// ============ DATA: PRODUCTOS / CATEGORÍAS (Supabase) ============
+let PRODUCTS   = [];
+let CATEGORIES = [];
 
 async function loadProducts() {
   const { data, error } = await sb
@@ -35,13 +36,26 @@ async function loadProducts() {
     .eq('active', true)
     .order('featured', { ascending: false })
     .order('id', { ascending: true })
-    .range(0, 9999);   // sin limite practico
+    .range(0, 9999);
 
   if (error) {
     console.error('Error cargando productos:', error);
     return;
   }
   PRODUCTS = data || [];
+}
+
+async function loadCategories() {
+  const { data, error } = await sb
+    .from('categories')
+    .select('*')
+    .order('name', { ascending: true })
+    .range(0, 999);
+  if (error) {
+    console.error('Error cargando categorías:', error);
+    return;
+  }
+  CATEGORIES = data || [];
 }
 
 // ============ HELPERS ============
@@ -94,6 +108,76 @@ function renderFeatured() {
   const grid = $('#featuredGrid');
   const featured = PRODUCTS.filter(p => p.featured);
   grid.innerHTML = featured.map(productCard).join('');
+}
+
+function renderCategories() {
+  const grid = $('#catGrid');
+  if (!grid) return;
+  if (CATEGORIES.length === 0) {
+    grid.innerHTML = '<p style="text-align:center; color:var(--gray-500); grid-column:1/-1;">No hay modelos cargados aún.</p>';
+    return;
+  }
+  grid.innerHTML = CATEGORIES.map(c => {
+    const count = PRODUCTS.filter(p => p.category_id === c.id).length;
+    const safeName = c.name.replace(/"/g, '&quot;');
+    return `
+      <a href="#cat=${encodeURIComponent(c.slug)}" class="cat-card-front" data-cat-slug="${c.slug}">
+        <div class="cat-card-front__image ${!c.image_url ? 'cat-card-front__image--empty' : ''}">
+          ${c.image_url ? `<img src="${c.image_url}" alt="${safeName}" loading="lazy">` : '🗂️'}
+          <div class="cat-card-front__overlay">
+            <div class="cat-card-front__name">${safeName}</div>
+            <div class="cat-card-front__count">${count} ${count === 1 ? 'modelo' : 'modelos'}</div>
+          </div>
+        </div>
+      </a>
+    `;
+  }).join('');
+}
+
+// Manejo de hash routing #cat=slug
+function applyCategoryFromHash() {
+  const m = (location.hash || '').match(/cat=([^&]+)/);
+  if (!m) return false;
+  const slug = decodeURIComponent(m[1]);
+  const cat = CATEGORIES.find(c => c.slug === slug);
+  if (!cat) return false;
+
+  // Setear chip "Categoría: X" en filtros
+  const chipsContainer = $('#filters');
+  $$('#filters .chip').forEach(c => c.classList.remove('chip--active'));
+  // Crear chip dinámico si no existe
+  let activeChip = chipsContainer.querySelector('[data-cat-id="' + cat.id + '"]');
+  if (!activeChip) {
+    activeChip = document.createElement('button');
+    activeChip.className = 'chip chip--active chip--cat-active';
+    activeChip.dataset.filter = 'cat:' + cat.id;
+    activeChip.dataset.catId  = cat.id;
+    activeChip.textContent = '× ' + cat.name;
+    activeChip.addEventListener('click', () => {
+      activeChip.remove();
+      history.replaceState(null, '', location.pathname);
+      $('#filters [data-filter="all"]').classList.add('chip--active');
+      renderCatalog('all');
+    });
+    chipsContainer.appendChild(activeChip);
+  } else {
+    activeChip.classList.add('chip--active');
+  }
+
+  renderCatalogByCategory(cat.id);
+  // Scroll al catálogo
+  setTimeout(() => {
+    document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+  return true;
+}
+
+function renderCatalogByCategory(catId) {
+  const grid = $('#catalogGrid');
+  const filtered = PRODUCTS.filter(p => p.category_id === catId);
+  grid.innerHTML = filtered.length
+    ? filtered.map(productCard).join('')
+    : '<p style="grid-column:1/-1;text-align:center;color:var(--gray-500); padding:40px;">No hay productos en este modelo todavía.</p>';
 }
 
 // ============ FILTERS ============
@@ -615,7 +699,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('#catalogGrid').innerHTML = '<p style="grid-column:1/-1;text-align:center;color:var(--gray-500);">Cargando productos...</p>';
   $('#featuredGrid').innerHTML = '';
 
-  await loadProducts();
+  await Promise.all([loadProducts(), loadCategories()]);
   renderFeatured();
-  renderCatalog();
+  renderCategories();
+
+  // Si hay hash #cat=slug, aplicar filtro; si no, render normal
+  if (!applyCategoryFromHash()) {
+    renderCatalog();
+  }
+
+  // Reaccionar a cambios de hash (cuando el usuario clickea otra cat)
+  window.addEventListener('hashchange', () => {
+    applyCategoryFromHash() || renderCatalog();
+  });
 });

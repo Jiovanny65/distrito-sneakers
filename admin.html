@@ -56,6 +56,7 @@
       <nav class="tabs">
         <button class="tab tab--active" data-tab="orders">📦 Pedidos</button>
         <button class="tab" data-tab="products">👟 Productos</button>
+        <button class="tab" data-tab="categories">🗂️ Categorías</button>
       </nav>
 
       <!-- ============ TAB: PEDIDOS ============ -->
@@ -174,6 +175,34 @@
 
       </section>
 
+      <!-- ============ TAB: CATEGORÍAS ============ -->
+      <section class="tab-panel" data-panel="categories">
+
+        <div class="stats">
+          <div class="stat">
+            <span class="stat__label">Total categorías</span>
+            <span class="stat__value" id="cStatTotal">—</span>
+          </div>
+          <div class="stat">
+            <span class="stat__label">Productos asignados</span>
+            <span class="stat__value" id="cStatAssigned">—</span>
+          </div>
+          <div class="stat">
+            <span class="stat__label">Sin categoría</span>
+            <span class="stat__value" id="cStatUnassigned">—</span>
+          </div>
+          <div class="stat stat--accent">
+            <span class="stat__label">Acciones</span>
+            <button class="btn btn--primary btn--sm" id="newCategoryBtn">+ Nueva categoría</button>
+          </div>
+        </div>
+
+        <div class="categories-grid" id="categoriesGrid">
+          <p style="color:var(--gray-500); padding: 30px; text-align: center;">Cargando categorías...</p>
+        </div>
+
+      </section>
+
     </main>
   </section>
 
@@ -270,6 +299,55 @@
         <div class="form__actions form__group--full">
           <button type="button" class="btn btn--ghost" data-close>Cancelar</button>
           <button type="submit" class="btn btn--primary">Guardar producto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ====== MODAL: CATEGORÍA ====== -->
+  <div class="modal" id="categoryModal" aria-hidden="true">
+    <div class="modal__overlay" data-close></div>
+    <div class="modal__dialog modal__dialog--wide">
+      <button class="modal__close" data-close>×</button>
+      <h2 id="categoryModalTitle">Nueva categoría</h2>
+
+      <form id="categoryForm" class="form form--admin">
+        <input type="hidden" name="id">
+
+        <div class="form__group form__group--full">
+          <label>Imagen de la categoría</label>
+          <div class="img-uploader">
+            <div class="img-uploader__preview" id="catImgPreview">
+              <span>Sin imagen</span>
+            </div>
+            <div class="img-uploader__actions">
+              <input type="file" id="catImgFile" accept="image/*" hidden>
+              <button type="button" class="btn btn--ghost btn--sm" id="catImgFileBtn">📷 Subir archivo</button>
+              <span class="img-uploader__or">o</span>
+              <input type="url" name="image_url" id="catImgUrl" placeholder="Pega URL de imagen externa" class="img-uploader__urlinput">
+            </div>
+          </div>
+        </div>
+
+        <div class="form__group form__group--full">
+          <label>Nombre de la categoría <span class="req">*</span></label>
+          <input type="text" name="name" id="catName" required placeholder="Ej: Jordan Retro 3">
+          <small id="catSlugPreview" style="color:var(--gray-500); font-size:12px; margin-top:4px;"></small>
+        </div>
+
+        <div class="form__group form__group--full" id="catProductsBlock" style="display:none;">
+          <label>Productos asignados a esta categoría</label>
+          <input type="search" id="catProductSearch" placeholder="Buscar productos por nombre..." class="toolbar__search" style="margin-bottom:10px;">
+          <div class="cat-products-list" id="catProductsList"></div>
+          <small style="color:var(--gray-500); font-size:12px; margin-top:6px; display:block;">
+            Marca los productos que pertenecen a esta categoría. Un producto solo puede estar en una categoría.
+          </small>
+        </div>
+
+        <div class="form__actions form__group--full">
+          <button type="button" class="btn btn--ghost btn--danger" id="deleteCategoryBtn" style="display:none; margin-right:auto;">🗑️ Eliminar categoría</button>
+          <button type="button" class="btn btn--ghost" data-close>Cancelar</button>
+          <button type="submit" class="btn btn--primary">Guardar</button>
         </div>
       </form>
     </div>

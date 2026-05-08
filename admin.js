@@ -37,6 +37,7 @@ function showDashboard(user) {
   // Por defecto la primera tab es "Pedidos"
   loadOrders();
   loadProducts();
+  loadCategories();
 }
 
 function attachLoginHandler() {
@@ -786,6 +787,271 @@ $('#manualOrderForm').addEventListener('submit', async (e) => {
 });
 
 // ============================================
+//   CATEGORÍAS
+// ============================================
+
+let allCategories = [];
+
+function slugify(name) {
+  return String(name || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+}
+
+async function loadCategories() {
+  const { data, error } = await sb
+    .from('categories')
+    .select('*')
+    .order('name', { ascending: true })
+    .range(0, 999);
+
+  if (error) {
+    toast('Error cargando categorías: ' + error.message, 'error');
+    return;
+  }
+  allCategories = data || [];
+  renderCategoriesGrid();
+  renderCategoryStats();
+}
+
+function renderCategoryStats() {
+  const total = allCategories.length;
+  const assigned = allProducts.filter(p => p.category_id).length;
+  const unassigned = allProducts.filter(p => !p.category_id).length;
+  $('#cStatTotal').textContent = total;
+  $('#cStatAssigned').textContent = assigned;
+  $('#cStatUnassigned').textContent = unassigned;
+}
+
+function renderCategoriesGrid() {
+  const grid = $('#categoriesGrid');
+  if (allCategories.length === 0) {
+    grid.innerHTML = '<p style="color:var(--gray-500); padding: 30px; text-align: center;">No hay categorías. Crea la primera con "+ Nueva categoría".</p>';
+    return;
+  }
+
+  grid.innerHTML = allCategories.map(c => {
+    const count = allProducts.filter(p => p.category_id === c.id).length;
+    return `
+      <div class="cat-card-admin" data-cat-id="${c.id}">
+        <div class="cat-card-admin__image ${!c.image_url ? 'cat-card-admin__image--empty' : ''}">
+          ${c.image_url ? `<img src="${c.image_url}" alt="${escapeHtml(c.name)}">` : '🗂️'}
+        </div>
+        <div class="cat-card-admin__body">
+          <div class="cat-card-admin__name">${escapeHtml(c.name)}</div>
+          <div class="cat-card-admin__count">
+            <strong>${count}</strong> producto${count === 1 ? '' : 's'} · /${c.slug}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+$('#categoriesGrid').addEventListener('click', (e) => {
+  const card = e.target.closest('[data-cat-id]');
+  if (card) openCategoryModal(parseInt(card.dataset.catId, 10));
+});
+
+const categoryModal = $('#categoryModal');
+
+function openCategoryModal(categoryId = null) {
+  const form = $('#categoryForm');
+  form.reset();
+  $('#catImgPreview').innerHTML = '<span>Sin imagen</span>';
+  $('#catSlugPreview').textContent = '';
+
+  const isEdit = !!categoryId;
+  $('#categoryModalTitle').textContent = isEdit ? 'Editar categoría' : 'Nueva categoría';
+  $('#deleteCategoryBtn').style.display = isEdit ? 'inline-flex' : 'none';
+  $('#catProductsBlock').style.display = isEdit ? 'block' : 'none';
+
+  if (isEdit) {
+    const cat = allCategories.find(c => c.id === categoryId);
+    if (!cat) return;
+    form.id.value = cat.id;
+    $('#catName').value = cat.name;
+    $('#catImgUrl').value = cat.image_url || '';
+    $('#catSlugPreview').textContent = '/categorias/' + cat.slug;
+    if (cat.image_url) {
+      $('#catImgPreview').innerHTML = `<img src="${cat.image_url}" alt="">`;
+    }
+    renderCatProductsList(cat.id);
+  }
+
+  categoryModal.classList.add('is-open');
+}
+
+function closeCategoryModal() {
+  categoryModal.classList.remove('is-open');
+}
+
+categoryModal.addEventListener('click', (e) => {
+  if (e.target.matches('[data-close]')) closeCategoryModal();
+});
+
+$('#newCategoryBtn').addEventListener('click', () => openCategoryModal());
+
+// Slug en vivo
+$('#catName').addEventListener('input', (e) => {
+  const slug = slugify(e.target.value);
+  $('#catSlugPreview').textContent = slug ? '/categorias/' + slug : '';
+});
+
+// Subida de imagen para categoría
+$('#catImgFileBtn').addEventListener('click', () => $('#catImgFile').click());
+$('#catImgFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  $('#catImgPreview').innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`;
+  toast('Subiendo imagen...');
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  const safeName = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+
+  const { error } = await sb.storage
+    .from('categories')
+    .upload(safeName, file, { cacheControl: '3600', upsert: false });
+
+  if (error) return toast('Error subiendo imagen: ' + error.message, 'error');
+
+  const { data: { publicUrl } } = sb.storage.from('categories').getPublicUrl(safeName);
+  $('#catImgUrl').value = publicUrl;
+  toast('Imagen subida ✓', 'success');
+});
+
+$('#catImgUrl').addEventListener('input', (e) => {
+  const url = e.target.value.trim();
+  if (url) $('#catImgPreview').innerHTML = `<img src="${url}" alt="" onerror="this.style.display='none'">`;
+});
+
+// Lista de productos asignables
+function renderCatProductsList(currentCatId) {
+  const list = $('#catProductsList');
+  const q = ($('#catProductSearch').value || '').toLowerCase();
+
+  const filtered = allProducts
+    .filter(p => p.active !== false)
+    .filter(p => !q || p.name.toLowerCase().includes(q))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  list.innerHTML = filtered.map(p => {
+    const isChecked = p.category_id === currentCatId;
+    const otherCat = !isChecked && p.category_id
+      ? allCategories.find(c => c.id === p.category_id)
+      : null;
+
+    return `
+      <div class="cat-product-row ${isChecked ? 'is-checked' : ''}" data-prod-id="${p.id}">
+        <div class="cat-product-row__check">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        </div>
+        ${p.image_url
+          ? `<img src="${p.image_url}" class="cat-product-row__img" alt="">`
+          : `<div class="cat-product-row__img" style="display:grid;place-items:center;font-size:18px;">👟</div>`}
+        <div class="cat-product-row__info">
+          <div class="cat-product-row__name">${escapeHtml(p.name)}</div>
+          <div class="cat-product-row__hint ${otherCat ? 'cat-product-row__hint--warn' : ''}">
+            ${otherCat ? `Actualmente en: ${escapeHtml(otherCat.name)}` : (isChecked ? 'Asignado' : 'Sin categoría')}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('') || '<p style="padding:14px; color:var(--gray-500); font-size:13px; text-align:center;">No hay productos.</p>';
+}
+
+$('#catProductSearch').addEventListener('input', () => {
+  const id = parseInt($('#categoryForm').id.value, 10) || null;
+  renderCatProductsList(id);
+});
+
+// Toggle producto en categoría
+$('#catProductsList').addEventListener('click', (e) => {
+  const row = e.target.closest('[data-prod-id]');
+  if (!row) return;
+  row.classList.toggle('is-checked');
+});
+
+// Submit
+$('#categoryForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const id = fd.get('id');
+  const name = (fd.get('name') || '').trim();
+  if (!name) return toast('Ingresa un nombre', 'error');
+  const slug = slugify(name);
+  const image_url = (fd.get('image_url') || '').trim() || null;
+
+  let catId;
+  if (id) {
+    catId = parseInt(id, 10);
+    const { error } = await sb.from('categories')
+      .update({ name, slug, image_url })
+      .eq('id', catId);
+    if (error) return toast('Error: ' + error.message, 'error');
+  } else {
+    const { data, error } = await sb.from('categories')
+      .insert({ name, slug, image_url })
+      .select('id')
+      .single();
+    if (error) return toast('Error: ' + error.message, 'error');
+    catId = data.id;
+  }
+
+  // Actualizar asignación de productos
+  if (id) {
+    // Productos marcados en la lista
+    const checkedIds = Array.from($$('#catProductsList .cat-product-row.is-checked'))
+      .map(r => parseInt(r.dataset.prodId, 10));
+    // Productos previamente asignados
+    const previouslyAssigned = allProducts
+      .filter(p => p.category_id === catId)
+      .map(p => p.id);
+
+    const toAssign = checkedIds.filter(pid => !previouslyAssigned.includes(pid));
+    const toUnassign = previouslyAssigned.filter(pid => !checkedIds.includes(pid));
+
+    if (toAssign.length) {
+      const { error } = await sb.from('products')
+        .update({ category_id: catId })
+        .in('id', toAssign);
+      if (error) console.error('Error assigning:', error);
+    }
+    if (toUnassign.length) {
+      const { error } = await sb.from('products')
+        .update({ category_id: null })
+        .in('id', toUnassign);
+      if (error) console.error('Error unassigning:', error);
+    }
+  }
+
+  toast(id ? 'Categoría actualizada ✓' : 'Categoría creada ✓', 'success');
+  closeCategoryModal();
+  await loadProducts();
+  await loadCategories();
+});
+
+// Eliminar
+$('#deleteCategoryBtn').addEventListener('click', async () => {
+  const id = parseInt($('#categoryForm').id.value, 10);
+  if (!id) return;
+  const cat = allCategories.find(c => c.id === id);
+  if (!confirm(`¿Eliminar la categoría "${cat?.name}"? Las zapatillas no se eliminan, solo quedan sin categoría asignada.`)) return;
+
+  const { error } = await sb.from('categories').delete().eq('id', id);
+  if (error) return toast('Error: ' + error.message, 'error');
+  toast('Categoría eliminada', 'success');
+  closeCategoryModal();
+  await loadProducts();
+  await loadCategories();
+});
+
+// ============================================
 //   TABS NAVIGATION
 // ============================================
 $$('.tab').forEach(btn => {
@@ -794,8 +1060,9 @@ $$('.tab').forEach(btn => {
     $$('.tab').forEach(b => b.classList.toggle('tab--active', b === btn));
     $$('.tab-panel').forEach(p => p.classList.toggle('tab-panel--active', p.dataset.panel === target));
 
-    if (target === 'orders') loadOrders();
-    if (target === 'products') loadProducts();
+    if (target === 'orders')     loadOrders();
+    if (target === 'products')   loadProducts();
+    if (target === 'categories') loadCategories();
   });
 });
 

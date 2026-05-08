@@ -611,6 +611,80 @@ h1, h2, h3, h4 {
   transform: scale(1.05);
 }
 
+/* ============ CATEGORÍAS (modelos) ============ */
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 22px;
+}
+.cat-card-front {
+  position: relative;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition);
+  cursor: pointer;
+  display: block;
+  border: 1px solid transparent;
+  text-decoration: none;
+  color: inherit;
+}
+.cat-card-front:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--blue);
+}
+.cat-card-front__image {
+  aspect-ratio: 4/3;
+  background: linear-gradient(135deg, var(--gray-100), #e5e5ee);
+  position: relative;
+  overflow: hidden;
+}
+.cat-card-front__image img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+.cat-card-front:hover .cat-card-front__image img {
+  transform: scale(1.06);
+}
+.cat-card-front__image--empty {
+  display: grid; place-items: center;
+  font-size: 60px;
+  color: var(--gray-300);
+}
+.cat-card-front__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 50%, rgba(10, 10, 15, 0.85) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 22px 20px;
+}
+.cat-card-front__name {
+  color: var(--white);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+  line-height: 1.15;
+}
+.cat-card-front__count {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .cat-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .cat-card-front__name { font-size: 16px; }
+  .cat-card-front__overlay { padding: 14px 14px; }
+  .cat-card-front__count { font-size: 11.5px; }
+}
+
 /* ============ FILTERS ============ */
 .filters {
   display: flex;
@@ -632,6 +706,11 @@ h1, h2, h3, h4 {
   background: var(--black);
   border-color: var(--black);
   color: var(--white);
+}
+.chip--cat-active {
+  background: var(--blue) !important;
+  border-color: var(--blue) !important;
+  color: var(--white) !important;
 }
 
 /* ============ PRODUCT GRID ============ */
