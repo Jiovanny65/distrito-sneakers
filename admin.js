@@ -1103,7 +1103,10 @@ $('#categoryForm').addEventListener('submit', async (e) => {
   const name = (fd.get('name') || '').trim();
   if (!name) return toast('Ingresa un nombre', 'error');
   const slug = slugify(name);
+  if (!slug) return toast('Nombre inválido (sin caracteres válidos para slug)', 'error');
   const image_url = (fd.get('image_url') || '').trim() || null;
+
+  console.log('[saveCategory]', { id, name, slug, image_url });
 
   let catId;
   if (id) {
@@ -1111,14 +1114,29 @@ $('#categoryForm').addEventListener('submit', async (e) => {
     const { error } = await sb.from('categories')
       .update({ name, slug, image_url })
       .eq('id', catId);
-    if (error) return toast('Error: ' + error.message, 'error');
+    if (error) {
+      console.error('[saveCategory] update failed:', error);
+      return toast('Error al actualizar: ' + (error.message || error.code), 'error');
+    }
   } else {
+    // Insert sin .single() para evitar fallar si RLS bloquea SELECT
     const { data, error } = await sb.from('categories')
       .insert({ name, slug, image_url })
-      .select('id')
-      .single();
-    if (error) return toast('Error: ' + error.message, 'error');
-    catId = data.id;
+      .select('id');
+    if (error) {
+      console.error('[saveCategory] insert failed:', error);
+      const msg = error.message || error.code || 'desconocido';
+      const hint = error.code === '23505'
+        ? ' (ya existe una categoría con ese nombre)'
+        : '';
+      return toast('Error al crear: ' + msg + hint, 'error');
+    }
+    if (!data || !data.length) {
+      console.error('[saveCategory] insert returned no data', data);
+      return toast('Error: no se devolvió la categoría tras crearla. Recarga la página y verifica si quedó creada.', 'error');
+    }
+    catId = data[0].id;
+    console.log('[saveCategory] created with id', catId);
   }
 
   // Actualizar asignación de productos
