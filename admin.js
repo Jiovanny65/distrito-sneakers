@@ -875,32 +875,52 @@ $('#categoriesGrid').addEventListener('click', async (e) => {
   if (card) openCategoryModal(parseInt(card.dataset.catId, 10));
 });
 
+let reorderingCategory = false;
+
 async function reorderCategory(id, dir) {
-  const idx = allCategories.findIndex(c => c.id === id);
-  if (idx < 0) return;
-  const targetIdx = dir === 'up' ? idx - 1 : idx + 1;
-  if (targetIdx < 0 || targetIdx >= allCategories.length) return;
+  if (reorderingCategory) {
+    console.log('[reorderCategory] Click ignorado: ya hay un reorder en curso');
+    return;
+  }
+  reorderingCategory = true;
+  // Disable all reorder buttons mientras procesamos
+  $$('[data-move-cat]').forEach(b => b.disabled = true);
 
-  const a = allCategories[idx];
-  const b = allCategories[targetIdx];
+  try {
+    const idx = allCategories.findIndex(c => c.id === id);
+    if (idx < 0) return;
+    const targetIdx = dir === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= allCategories.length) return;
 
-  // Calcular nuevos orders
-  const aOrder = (a.display_order ?? idx * 10) || (idx * 10);
-  const bOrder = (b.display_order ?? targetIdx * 10) || (targetIdx * 10);
+    // Renumeracion completa: swap y luego asignar 10, 20, 30, ... a TODOS
+    const newOrder = [...allCategories];
+    [newOrder[idx], newOrder[targetIdx]] = [newOrder[targetIdx], newOrder[idx]];
 
-  const updates = [
-    sb.from('categories').update({ display_order: bOrder }).eq('id', a.id),
-    sb.from('categories').update({ display_order: aOrder }).eq('id', b.id)
-  ];
-  const results = await Promise.all(updates);
-  const err = results.find(r => r.error);
-  if (err) return toast('Error reordenando: ' + err.error.message, 'error');
+    console.log('[reorderCategory] Renumerando', newOrder.length, 'categorías');
 
-  // Actualizar localmente y re-render
-  a.display_order = bOrder;
-  b.display_order = aOrder;
-  allCategories.sort((x, y) => (x.display_order ?? 0) - (y.display_order ?? 0));
-  renderCategoriesGrid();
+    const updates = newOrder.map((cat, i) =>
+      sb.from('categories').update({ display_order: (i + 1) * 10 }).eq('id', cat.id)
+    );
+
+    const results = await Promise.all(updates);
+    const errResult = results.find(r => r.error);
+    if (errResult) {
+      console.error('[reorderCategory] Error:', errResult.error);
+      toast('Error reordenando: ' + errResult.error.message, 'error');
+      // Refresh desde DB para recuperar estado consistente
+      await loadCategories();
+      return;
+    }
+
+    // Sincronizar estado local
+    newOrder.forEach((cat, i) => { cat.display_order = (i + 1) * 10; });
+    allCategories = newOrder;
+    renderCategoriesGrid();
+    console.log('[reorderCategory] OK');
+  } finally {
+    reorderingCategory = false;
+    // Re-enable; renderCategoriesGrid ya pone disabled correctos
+  }
 }
 
 const categoryModal = $('#categoryModal');
@@ -1066,33 +1086,51 @@ $('#catProductsList').addEventListener('click', async (e) => {
   row.classList.toggle('is-checked');
 });
 
+let reorderingProduct = false;
+
 async function reorderProductInCategory(id, dir, catId) {
-  const inCat = allProducts
-    .filter(p => p.category_id === catId)
-    .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+  if (reorderingProduct) return;
+  reorderingProduct = true;
+  $$('[data-move-prod]').forEach(b => b.disabled = true);
 
-  const idx = inCat.findIndex(p => p.id === id);
-  if (idx < 0) return;
-  const targetIdx = dir === 'up' ? idx - 1 : idx + 1;
-  if (targetIdx < 0 || targetIdx >= inCat.length) return;
+  try {
+    const inCat = allProducts
+      .filter(p => p.category_id === catId)
+      .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
 
-  const a = inCat[idx];
-  const b = inCat[targetIdx];
+    const idx = inCat.findIndex(p => p.id === id);
+    if (idx < 0) return;
+    const targetIdx = dir === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= inCat.length) return;
 
-  const aOrder = a.display_order ?? (idx * 10);
-  const bOrder = b.display_order ?? (targetIdx * 10);
+    // Swap y renumerar TODOS los productos de esta categoría
+    const newOrder = [...inCat];
+    [newOrder[idx], newOrder[targetIdx]] = [newOrder[targetIdx], newOrder[idx]];
 
-  const r1 = await sb.from('products').update({ display_order: bOrder }).eq('id', a.id);
-  const r2 = await sb.from('products').update({ display_order: aOrder }).eq('id', b.id);
-  if (r1.error || r2.error) return toast('Error reordenando producto', 'error');
+    const updates = newOrder.map((p, i) =>
+      sb.from('products').update({ display_order: (i + 1) * 10 }).eq('id', p.id)
+    );
 
-  // Sincronizar en memoria
-  const aLocal = allProducts.find(p => p.id === a.id);
-  const bLocal = allProducts.find(p => p.id === b.id);
-  if (aLocal) aLocal.display_order = bOrder;
-  if (bLocal) bLocal.display_order = aOrder;
+    const results = await Promise.all(updates);
+    const errResult = results.find(r => r.error);
+    if (errResult) {
+      console.error('[reorderProduct] Error:', errResult.error);
+      toast('Error reordenando: ' + errResult.error.message, 'error');
+      await loadProducts();
+      renderCatProductsList(catId);
+      return;
+    }
 
-  renderCatProductsList(catId);
+    // Sincronizar memoria
+    newOrder.forEach((p, i) => {
+      const local = allProducts.find(x => x.id === p.id);
+      if (local) local.display_order = (i + 1) * 10;
+    });
+
+    renderCatProductsList(catId);
+  } finally {
+    reorderingProduct = false;
+  }
 }
 
 // Submit
@@ -1119,9 +1157,14 @@ $('#categoryForm').addEventListener('submit', async (e) => {
       return toast('Error al actualizar: ' + (error.message || error.code), 'error');
     }
   } else {
-    // Insert sin .single() para evitar fallar si RLS bloquea SELECT
+    // Calcular display_order para la nueva categoría: al final de la lista
+    const maxOrder = allCategories.length
+      ? Math.max(...allCategories.map(c => c.display_order || 0))
+      : 0;
+    const newOrder = maxOrder + 10;
+
     const { data, error } = await sb.from('categories')
-      .insert({ name, slug, image_url })
+      .insert({ name, slug, image_url, display_order: newOrder })
       .select('id');
     if (error) {
       console.error('[saveCategory] insert failed:', error);
@@ -1136,7 +1179,7 @@ $('#categoryForm').addEventListener('submit', async (e) => {
       return toast('Error: no se devolvió la categoría tras crearla. Recarga la página y verifica si quedó creada.', 'error');
     }
     catId = data[0].id;
-    console.log('[saveCategory] created with id', catId);
+    console.log('[saveCategory] created with id', catId, 'display_order', newOrder);
   }
 
   // Actualizar asignación de productos
