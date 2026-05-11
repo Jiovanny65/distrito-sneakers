@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex,nofollow" />
   <title>Admin · Distrito Sneakers</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="admin.css?v=5" />
+  <link rel="stylesheet" href="admin.css?v=6" />
 </head>
 <body>
 
@@ -236,13 +236,17 @@
           <input type="text" name="name" required placeholder="Ej: Air Jordan 4 Retro 'Black Cat'">
         </div>
 
-        <div class="form__group">
-          <label>Categoría <span class="req">*</span></label>
-          <select name="category" required>
-            <option value="zapatillas">Zapatillas</option>
-            <option value="accesorios">Accesorios</option>
+        <div class="form__group form__group--full">
+          <label>Categoría / Modelo <span class="req">*</span></label>
+          <select name="category_id" id="prodCategorySelect" required>
+            <option value="">Selecciona una categoría</option>
           </select>
+          <small style="font-size:12px; color:var(--gray-500);">
+            Elige la categoría (modelo) a la que pertenece este producto. Crea categorías nuevas desde la pestaña Categorías.
+          </small>
         </div>
+
+        <input type="hidden" name="category" value="zapatillas">
 
         <div class="form__group form__group--full">
           <label>Tag (opcional)</label>
@@ -270,15 +274,20 @@
           </small>
         </div>
 
-        <div class="form__group">
-          <label>Tallas (separadas por coma)</label>
-          <input type="text" name="sizes" placeholder="38,39,40,41,42,43,44,45">
+        <div class="form__group form__group--full">
+          <label>Tallas disponibles <span class="req">*</span></label>
+          <div class="size-chips" id="prodSizeChips"></div>
+          <div class="size-chips__add">
+            <input type="text" id="prodCustomSize" placeholder="Agregar talla personalizada (ej: 47 o XL)" maxlength="10">
+            <button type="button" class="btn btn--ghost btn--sm" id="prodAddSizeBtn">+ Agregar</button>
+          </div>
+          <small style="font-size:12px; color:var(--gray-500); display:block; margin-top:6px;">
+            Click en una talla para activarla/desactivarla. Las activas (azul) se mostrarán al cliente.
+          </small>
         </div>
 
-        <div class="form__group form__group--full">
-          <label>Colores (separados por coma)</label>
-          <input type="text" name="colors" placeholder="Negro, Blanco, Azul">
-        </div>
+        <input type="hidden" name="colors" value="">
+
 
         <div class="form__group form__group--full">
           <label>Descripción</label>
@@ -510,7 +519,7 @@
   <div class="toast" id="toast"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase-config.js?v=5"></script>
-  <script src="admin.js?v=5"></script>
+  <script src="supabase-config.js?v=6"></script>
+  <script src="admin.js?v=6"></script>
 </body>
 </html>

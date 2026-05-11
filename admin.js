@@ -218,6 +218,37 @@ async function toggleActive(id) {
 // ============ MODAL ============
 const modal = $('#productModal');
 
+const DEFAULT_SIZES = ['36','37','38','39','40','41','42','43','44','45','46'];
+
+function populateProductCategorySelect(selectedId = '') {
+  const sel = $('#prodCategorySelect');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Selecciona una categoría</option>'
+    + allCategories.map(c =>
+        `<option value="${c.id}" ${String(c.id) === String(selectedId) ? 'selected' : ''}>${escapeHtml(c.name)}</option>`
+      ).join('');
+}
+
+function renderSizeChips(activeSizes = []) {
+  const wrap = $('#prodSizeChips');
+  if (!wrap) return;
+  // Unir defaults + tallas custom del producto
+  const allSizes = Array.from(new Set([...DEFAULT_SIZES, ...activeSizes]));
+  // Ordenar numéricamente si es número, alfabético si no
+  allSizes.sort((a, b) => {
+    const na = parseFloat(a), nb = parseFloat(b);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return String(a).localeCompare(String(b));
+  });
+  const isCustom = (s) => !DEFAULT_SIZES.includes(s);
+  wrap.innerHTML = allSizes.map(s => {
+    const isActive = activeSizes.includes(s);
+    return `<button type="button" class="size-chip ${isActive ? 'is-active' : ''}" data-size="${escapeHtml(s)}">
+              ${escapeHtml(s)}${isCustom(s) ? '<span class="size-chip__remove" data-remove-size="' + escapeHtml(s) + '">×</span>' : ''}
+            </button>`;
+  }).join('');
+}
+
 function openProductModal(product = null) {
   const form = $('#productForm');
   form.reset();
@@ -227,11 +258,8 @@ function openProductModal(product = null) {
     $('#modalTitle').textContent = 'Editar producto';
     $('#prodHiddenId').value = product.id;
     form.name.value        = product.name || '';
-    form.category.value    = product.category || 'zapatillas';
     form.tag.value         = product.tag || '';
     form.image_url.value   = product.image_url || '';
-    form.sizes.value       = (product.sizes || []).join(', ');
-    form.colors.value      = (product.colors || []).join(', ');
     form.description.value = product.description || '';
     form.featured.checked  = !!product.featured;
     form.active.checked    = product.active !== false;
@@ -239,20 +267,62 @@ function openProductModal(product = null) {
     form.price_PK.value = qp.PK || '';
     form.price_G5.value = qp.G5 || '';
     form.price_OG.value = qp.OG || '';
+    populateProductCategorySelect(product.category_id || '');
+    renderSizeChips(product.sizes || DEFAULT_SIZES);
     if (product.image_url) {
       $('#imgPreview').innerHTML = `<img src="${product.image_url}" alt="">`;
     }
   } else {
     $('#modalTitle').textContent = 'Nuevo producto';
     form.active.checked = true;
-    form.sizes.value = '38, 39, 40, 41, 42, 43, 44, 45';
     form.price_PK.value = '';
     form.price_G5.value = '';
     form.price_OG.value = '';
+    populateProductCategorySelect('');
+    renderSizeChips(DEFAULT_SIZES);  // Todas activas por defecto
   }
 
   modal.classList.add('is-open');
 }
+
+// Handler chips de talla: toggle on click, remove on × click
+document.addEventListener('click', (e) => {
+  const removeBtn = e.target.closest('[data-remove-size]');
+  if (removeBtn) {
+    e.stopPropagation();
+    e.preventDefault();
+    const sizeToRemove = removeBtn.dataset.removeSize;
+    // Tomar tallas activas actuales (sin la que removemos) y re-render
+    const active = Array.from($$('#prodSizeChips .size-chip.is-active'))
+      .map(c => c.dataset.size)
+      .filter(s => s !== sizeToRemove);
+    // También quitar de los chips disponibles si era custom
+    renderSizeChips(active);
+    return;
+  }
+  const chip = e.target.closest('#prodSizeChips .size-chip');
+  if (chip) {
+    e.preventDefault();
+    chip.classList.toggle('is-active');
+  }
+});
+
+// Agregar talla personalizada
+$('#prodAddSizeBtn')?.addEventListener('click', () => {
+  const input = $('#prodCustomSize');
+  const val = (input.value || '').trim();
+  if (!val) return;
+  const active = Array.from($$('#prodSizeChips .size-chip.is-active')).map(c => c.dataset.size);
+  if (!active.includes(val)) active.push(val);
+  renderSizeChips(active);
+  input.value = '';
+});
+$('#prodCustomSize')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    $('#prodAddSizeBtn').click();
+  }
+});
 
 function closeModal() {
   modal.classList.remove('is-open');
@@ -320,15 +390,29 @@ $('#productForm').addEventListener('submit', async (e) => {
   // mantener compatibilidad con queries antiguas que filtran/ordenan por price).
   const minPrice = Math.min(...Object.values(qp));
 
+  // Validar categoría
+  const categoryId = fd.get('category_id');
+  if (!categoryId) {
+    return toast('Selecciona una categoría', 'error');
+  }
+
+  // Tomar tallas activas desde los chips
+  const activeSizes = Array.from($$('#prodSizeChips .size-chip.is-active'))
+    .map(c => c.dataset.size);
+  if (activeSizes.length === 0) {
+    return toast('Selecciona al menos una talla', 'error');
+  }
+
   const payload = {
     name:           fd.get('name').trim(),
-    category:       fd.get('category'),
+    category:       fd.get('category') || 'zapatillas',
+    category_id:    parseInt(categoryId, 10),
     price:          minPrice,
     quality_prices: qp,
     tag:            fd.get('tag').trim() || null,
     image_url:      fd.get('image_url').trim() || null,
     description:    fd.get('description').trim() || null,
-    sizes:          splitCsv(fd.get('sizes')),
+    sizes:          activeSizes,
     colors:         splitCsv(fd.get('colors')),
     featured:       fd.get('featured') === 'on',
     active:         fd.get('active') === 'on'

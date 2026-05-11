@@ -609,6 +609,62 @@ h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; letter-spacing: -.02em; }
 .btn--danger { color: var(--red); border-color: rgba(224,45,45,.3); }
 .btn--danger:hover { background: var(--red); color: var(--white); border-color: var(--red); }
 
+/* ====== SIZE CHIPS ====== */
+.size-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+  background: var(--gray-100);
+  border-radius: 10px;
+  border: 1.5px solid var(--gray-300);
+}
+.size-chip {
+  min-width: 50px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--white);
+  border: 2px solid var(--gray-300);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gray-700);
+  cursor: pointer;
+  transition: all var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.size-chip:hover { border-color: var(--blue); color: var(--blue); }
+.size-chip.is-active {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: var(--white);
+}
+.size-chip__remove {
+  color: rgba(255,255,255,0.7);
+  font-weight: 900;
+  font-size: 13px;
+  margin-left: 2px;
+}
+.size-chip__remove:hover { color: #fff; }
+.size-chips__add {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.size-chips__add input {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1.5px solid var(--gray-300);
+  border-radius: 8px;
+  font-size: 14px;
+}
+.size-chips__add input:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
 /* ====== QUALITY PRICES ====== */
 .quality-prices-block {
   background: var(--gray-100);
