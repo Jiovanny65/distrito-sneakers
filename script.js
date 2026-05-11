@@ -37,7 +37,7 @@ async function loadProducts() {
     .order('display_order', { ascending: true, nullsFirst: false })
     .order('featured', { ascending: false })
     .order('id', { ascending: true })
-    .range(0, 9999);
+    .range(0, 49999);
 
   if (error) {
     console.error('Error cargando productos:', error);
@@ -52,7 +52,7 @@ async function loadCategories() {
     .select('*')
     .order('display_order', { ascending: true, nullsFirst: false })
     .order('name', { ascending: true })
-    .range(0, 9999);
+    .range(0, 49999);
   if (error) {
     console.error('Error cargando categorías:', error);
     return;

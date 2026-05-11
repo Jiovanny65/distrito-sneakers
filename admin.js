@@ -109,7 +109,7 @@ async function loadProducts() {
     .select('*')
     .order('display_order', { ascending: true, nullsFirst: false })
     .order('id', { ascending: true })
-    .range(0, 9999);
+    .range(0, 49999);
 
   if (error) {
     toast('Error cargando productos: ' + error.message, 'error');
@@ -249,13 +249,21 @@ function renderSizeChips(activeSizes = []) {
   }).join('');
 }
 
+// Flag explícito del modo del modal de producto
+let productModalMode = 'create';   // 'create' | 'edit'
+let productModalEditId = null;
+
 function openProductModal(product = null) {
   const form = $('#productForm');
   form.reset();
   $('#imgPreview').innerHTML = '<span>Sin imagen</span>';
+  // SIEMPRE limpiar el hidden id (defensa contra restos de modal anterior)
+  $('#prodHiddenId').value = '';
 
   if (product) {
-    $('#modalTitle').textContent = 'Editar producto';
+    productModalMode = 'edit';
+    productModalEditId = product.id;
+    $('#modalTitle').textContent = 'Editar producto · #' + product.id;
     $('#prodHiddenId').value = product.id;
     form.name.value        = product.name || '';
     form.tag.value         = product.tag || '';
@@ -273,7 +281,9 @@ function openProductModal(product = null) {
       $('#imgPreview').innerHTML = `<img src="${product.image_url}" alt="">`;
     }
   } else {
-    $('#modalTitle').textContent = 'Nuevo producto';
+    productModalMode = 'create';
+    productModalEditId = null;
+    $('#modalTitle').textContent = '+ Nuevo producto';
     form.active.checked = true;
     form.price_PK.value = '';
     form.price_G5.value = '';
@@ -282,6 +292,7 @@ function openProductModal(product = null) {
     renderSizeChips(DEFAULT_SIZES);  // Todas activas por defecto
   }
 
+  console.log('[openProductModal] mode=', productModalMode, 'id=', productModalEditId);
   modal.classList.add('is-open');
 }
 
@@ -373,7 +384,18 @@ $('#imgUrl').addEventListener('input', (e) => {
 $('#productForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
-  const id = fd.get('product_id');
+
+  // Doble verificación: usamos el flag explícito + el hidden input
+  const hiddenId = fd.get('product_id');
+  const isEdit = productModalMode === 'edit' && !!productModalEditId;
+  const id = isEdit ? productModalEditId : null;
+
+  // Sanity check: si el modo dice CREATE pero el hidden tiene un id,
+  // es una inconsistencia. Forzamos CREATE para no sobrescribir.
+  if (productModalMode === 'create' && hiddenId) {
+    console.warn('[saveProduct] INCONSISTENCIA: modo create pero hidden tiene id=', hiddenId, '. Forzando INSERT.');
+  }
+  console.log('[saveProduct] mode=', productModalMode, 'isEdit=', isEdit, 'id=', id);
 
   // Construir quality_prices solo con las calidades que tienen valor
   const qp = {};
@@ -419,14 +441,25 @@ $('#productForm').addEventListener('submit', async (e) => {
   };
 
   let result;
-  if (id) {
+  if (isEdit) {
+    console.log('[saveProduct] UPDATE producto id=', id);
     result = await sb.from('products').update(payload).eq('id', id);
   } else {
+    // Asignar display_order al final
+    const maxOrder = allProducts.length
+      ? Math.max(0, ...allProducts.map(p => p.display_order || 0))
+      : 0;
+    payload.display_order = maxOrder + 10;
+    console.log('[saveProduct] INSERT nuevo producto, display_order=', payload.display_order);
     result = await sb.from('products').insert(payload);
   }
 
-  if (result.error) return toast('Error: ' + result.error.message, 'error');
-  toast(id ? 'Producto actualizado ✓' : 'Producto creado ✓', 'success');
+  if (result.error) {
+    console.error('[saveProduct] FAILED:', result.error);
+    return toast('Error: ' + result.error.message, 'error');
+  }
+  console.log('[saveProduct] OK');
+  toast(isEdit ? 'Producto actualizado ✓' : 'Producto creado ✓', 'success');
   closeModal();
   loadProducts();
 });
@@ -491,7 +524,7 @@ async function loadOrders() {
     .from('orders')
     .select('*')
     .order('created_at', { ascending: false })
-    .range(0, 9999);
+    .range(0, 49999);
 
   if (error) {
     toast('Error cargando pedidos: ' + error.message, 'error');
@@ -893,7 +926,7 @@ async function loadCategories() {
     .select('*')
     .order('display_order', { ascending: true, nullsFirst: false })
     .order('name', { ascending: true })
-    .range(0, 9999);  // Sin límite práctico
+    .range(0, 49999);  // Sin límite práctico
 
   if (error) {
     toast('Error cargando categorías: ' + error.message, 'error');
