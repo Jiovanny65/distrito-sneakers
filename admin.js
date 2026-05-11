@@ -225,7 +225,7 @@ function openProductModal(product = null) {
 
   if (product) {
     $('#modalTitle').textContent = 'Editar producto';
-    form.id.value          = product.id;
+    $('#prodHiddenId').value = product.id;
     form.name.value        = product.name || '';
     form.category.value    = product.category || 'zapatillas';
     form.tag.value         = product.tag || '';
@@ -303,7 +303,7 @@ $('#imgUrl').addEventListener('input', (e) => {
 $('#productForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
-  const id = fd.get('id');
+  const id = fd.get('product_id');
 
   // Construir quality_prices solo con las calidades que tienen valor
   const qp = {};
@@ -919,7 +919,7 @@ function openCategoryModal(categoryId = null) {
   if (isEdit) {
     const cat = allCategories.find(c => c.id === categoryId);
     if (!cat) return;
-    form.id.value = cat.id;
+    $('#catHiddenId').value = cat.id;
     $('#catName').value = cat.name;
     $('#catImgUrl').value = cat.image_url || '';
     $('#catSlugPreview').textContent = '/categorias/' + cat.slug;
@@ -1043,7 +1043,7 @@ function prodRow(p, currentCatId, idx, total) {
 }
 
 $('#catProductSearch').addEventListener('input', () => {
-  const id = parseInt($('#categoryForm').id.value, 10) || null;
+  const id = parseInt($('#catHiddenId').value, 10) || null;
   renderCatProductsList(id);
 });
 
@@ -1056,7 +1056,7 @@ $('#catProductsList').addEventListener('click', async (e) => {
     e.preventDefault();
     const id  = parseInt(moveBtn.dataset.id, 10);
     const dir = moveBtn.dataset.moveProd;
-    const currentCatId = parseInt($('#categoryForm').id.value, 10);
+    const currentCatId = parseInt($('#catHiddenId').value, 10);
     await reorderProductInCategory(id, dir, currentCatId);
     return;
   }
@@ -1099,7 +1099,7 @@ async function reorderProductInCategory(id, dir, catId) {
 $('#categoryForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
-  const id = fd.get('id');
+  const id = fd.get('category_id');
   const name = (fd.get('name') || '').trim();
   if (!name) return toast('Ingresa un nombre', 'error');
   const slug = slugify(name);
@@ -1174,7 +1174,7 @@ $('#categoryForm').addEventListener('submit', async (e) => {
 
 // Eliminar
 $('#deleteCategoryBtn').addEventListener('click', async () => {
-  const id = parseInt($('#categoryForm').id.value, 10);
+  const id = parseInt($('#catHiddenId').value, 10);
   if (!id) return;
   const cat = allCategories.find(c => c.id === id);
   if (!confirm(`¿Eliminar la categoría "${cat?.name}"? Las zapatillas no se eliminan, solo quedan sin categoría asignada.`)) return;

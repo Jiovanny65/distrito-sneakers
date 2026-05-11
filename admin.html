@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex,nofollow" />
   <title>Admin · Distrito Sneakers</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="admin.css?v=3" />
+  <link rel="stylesheet" href="admin.css?v=4" />
 </head>
 <body>
 
@@ -214,7 +214,7 @@
       <h2 id="modalTitle">Nuevo producto</h2>
 
       <form id="productForm" class="form form--admin">
-        <input type="hidden" name="id">
+        <input type="hidden" name="product_id" id="prodHiddenId">
 
         <div class="form__group form__group--full">
           <label>Imagen del producto</label>
@@ -312,7 +312,7 @@
       <h2 id="categoryModalTitle">Nueva categoría</h2>
 
       <form id="categoryForm" class="form form--admin">
-        <input type="hidden" name="id">
+        <input type="hidden" name="category_id" id="catHiddenId">
 
         <div class="form__group form__group--full">
           <label>Imagen de la categoría</label>
@@ -510,7 +510,7 @@
   <div class="toast" id="toast"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase-config.js?v=3"></script>
-  <script src="admin.js?v=3"></script>
+  <script src="supabase-config.js?v=4"></script>
+  <script src="admin.js?v=4"></script>
 </body>
 </html>
