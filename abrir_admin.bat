@@ -1,8 +1,8 @@
 @echo off
-title Distrito Sneakers - Admin
+title Speed Style CL - Admin
 echo.
 echo  ========================================
-echo    DISTRITO SNEAKERS - Panel Admin...
+echo    SPEED STYLE CL - Panel Admin...
 echo  ========================================
 echo.
 start "" "%~dp0admin.html"

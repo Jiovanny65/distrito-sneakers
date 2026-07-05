@@ -1,5 +1,5 @@
 /* ============================================
-   Distrito Sneakers — Admin Panel Logic
+   Speed Style CL — Admin Panel Logic
    ============================================ */
 
 const $ = (s, c = document) => c.querySelector(s);
@@ -36,7 +36,7 @@ function showDashboard(user) {
   $('#userEmail').textContent = user.email;
   // Por defecto la primera tab es "Pedidos"
   loadOrders();
-  loadProducts();
+  loadProducts().then(() => loadFeaturedRotation());
   loadCategories();
 }
 
@@ -118,6 +118,7 @@ async function loadProducts() {
   allProducts = data || [];
   renderTable();
   renderStats();
+  renderFeaturedTab();
 }
 
 function renderStats() {
@@ -274,7 +275,6 @@ function openProductModal(product = null) {
     const qp = product.quality_prices || {};
     form.price_PK.value = qp.PK || '';
     form.price_G5.value = qp.G5 || '';
-    form.price_OG.value = qp.OG || '';
     populateProductCategorySelect(product.category_id || '');
     renderSizeChips(product.sizes || DEFAULT_SIZES);
     if (product.image_url) {
@@ -287,7 +287,6 @@ function openProductModal(product = null) {
     form.active.checked = true;
     form.price_PK.value = '';
     form.price_G5.value = '';
-    form.price_OG.value = '';
     populateProductCategorySelect('');
     renderSizeChips(DEFAULT_SIZES);  // Todas activas por defecto
   }
@@ -399,13 +398,13 @@ $('#productForm').addEventListener('submit', async (e) => {
 
   // Construir quality_prices solo con las calidades que tienen valor
   const qp = {};
-  ['PK', 'G5', 'OG'].forEach(k => {
+  ['PK', 'G5'].forEach(k => {
     const v = parseInt(fd.get('price_' + k), 10);
     if (v > 0) qp[k] = v;
   });
 
   if (Object.keys(qp).length === 0) {
-    return toast('Define al menos un precio por calidad (OG, G5 o PK)', 'error');
+    return toast('Define al menos un precio por calidad (G5 o PK)', 'error');
   }
 
   // El campo 'price' del schema se autocompleta con el precio menor (para
@@ -425,6 +424,30 @@ $('#productForm').addEventListener('submit', async (e) => {
     return toast('Selecciona al menos una talla', 'error');
   }
 
+  const wantFeatured = fd.get('featured') === 'on';
+
+  // Guard: rotación automática ignora selección manual
+  if (wantFeatured && featuredRotation.enabled) {
+    if (!confirm(
+      'La rotación automática está ACTIVA — los cambios manuales de destacados quedan ignorados hasta que la apagues. ¿Guardar de todos modos?'
+    )) return;
+  }
+
+  // Guard: máx 5 destacados manuales simultáneos
+  const currentFeaturedIds = allProducts.filter(p => p.featured).map(p => p.id);
+  const willBeFeatured = wantFeatured
+    ? Array.from(new Set([...currentFeaturedIds, isEdit ? Number(id) : -1]))
+      .filter(pid => pid !== Number(id) || wantFeatured)
+    : currentFeaturedIds.filter(pid => pid !== Number(id));
+
+  if (wantFeatured && !featuredRotation.enabled) {
+    const alreadyFeat = isEdit && allProducts.find(p => p.id == id)?.featured;
+    const projectedCount = alreadyFeat ? currentFeaturedIds.length : currentFeaturedIds.length + 1;
+    if (projectedCount > MAX_FEATURED) {
+      return toast('Ya tienes 5 productos destacados, desmarca uno para agregar otro.', 'error');
+    }
+  }
+
   const payload = {
     name:           fd.get('name').trim(),
     category:       fd.get('category') || 'zapatillas',
@@ -436,7 +459,7 @@ $('#productForm').addEventListener('submit', async (e) => {
     description:    fd.get('description').trim() || null,
     sizes:          activeSizes,
     colors:         splitCsv(fd.get('colors')),
-    featured:       fd.get('featured') === 'on',
+    featured:       wantFeatured,
     active:         fd.get('active') === 'on'
   };
 
@@ -1359,8 +1382,259 @@ $$('.tab').forEach(btn => {
     if (target === 'orders')     loadOrders();
     if (target === 'products')   loadProducts();
     if (target === 'categories') loadCategories();
+    if (target === 'featured')   loadFeaturedRotation();
   });
 });
+
+// ============================================
+//   FEATURED / DESTACADOS + ROTACIÓN AUTOMÁTICA
+// ============================================
+const MAX_FEATURED = 5;
+const ROTATION_HOURS = 3;
+
+// Estado local del setting (siempre sincronizado con app_settings.featured_rotation)
+let featuredRotation = {
+  enabled: false,
+  last_rotation_at: null,
+  interval_hours: ROTATION_HOURS,
+  max_featured: MAX_FEATURED,
+  manual_snapshot: []
+};
+
+async function loadFeaturedRotation() {
+  const { data, error } = await sb
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'featured_rotation')
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST116') {
+    console.warn('[featured] no se pudo leer app_settings:', error);
+  }
+  if (data?.value) {
+    featuredRotation = { ...featuredRotation, ...data.value };
+  }
+
+  // Si la rotación está encendida y ya pasaron 3+ h desde la última, rotar.
+  if (featuredRotation.enabled && shouldRotateNow()) {
+    console.log('[featured] rotación pendiente (>3h) — ejecutando ahora');
+    await performRotation({ silent: true });
+  }
+
+  renderFeaturedTab();
+}
+
+function shouldRotateNow() {
+  if (!featuredRotation.last_rotation_at) return true;
+  const last = new Date(featuredRotation.last_rotation_at).getTime();
+  const ms = featuredRotation.interval_hours * 60 * 60 * 1000;
+  return (Date.now() - last) >= ms;
+}
+
+function fmtRelativeDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleString('es-CL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+function nextRotationLabel() {
+  if (!featuredRotation.enabled) return 'Rotación apagada';
+  const last = featuredRotation.last_rotation_at ? new Date(featuredRotation.last_rotation_at).getTime() : Date.now();
+  const next = new Date(last + featuredRotation.interval_hours * 60 * 60 * 1000);
+  return fmtRelativeDate(next.toISOString());
+}
+
+async function saveFeaturedRotation() {
+  featuredRotation = { ...featuredRotation };
+  const { error } = await sb
+    .from('app_settings')
+    .upsert({
+      key: 'featured_rotation',
+      value: featuredRotation,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'key' });
+  if (error) {
+    console.error('[featured] error guardando setting:', error);
+    toast('Error guardando configuración: ' + error.message, 'error');
+    return false;
+  }
+  return true;
+}
+
+function renderFeaturedTab() {
+  const list = $('#featuredList');
+  const counter = $('#featuredCount');
+  const toggle = $('#rotationToggle');
+  const rotateBtn = $('#rotateNowBtn');
+  const rotationCard = document.querySelector('.rotation-card');
+  const rotationLast = $('#rotationLast');
+  const rotationNext = $('#rotationNext');
+  const hint = $('#manualSelectionHint');
+  if (!list) return; // tab aún no montada (bug de carga)
+
+  const featuredIds = allProducts.filter(p => p.featured).map(p => p.id);
+  counter.textContent = featuredIds.length;
+  counter.parentElement.classList.toggle('is-full', featuredIds.length >= MAX_FEATURED);
+
+  // Rotation UI
+  if (toggle) toggle.checked = !!featuredRotation.enabled;
+  if (rotationCard) rotationCard.classList.toggle('is-on', !!featuredRotation.enabled);
+  if (rotateBtn) rotateBtn.disabled = !featuredRotation.enabled;
+  if (rotationLast) rotationLast.textContent = fmtRelativeDate(featuredRotation.last_rotation_at);
+  if (rotationNext) rotationNext.textContent = nextRotationLabel();
+
+  // Auto ON = manual bloqueado
+  list.classList.toggle('is-locked', !!featuredRotation.enabled);
+  if (hint) {
+    hint.textContent = featuredRotation.enabled
+      ? '⚠️ Rotación automática activa — la selección manual está deshabilitada. Apágala para volver a elegir manualmente.'
+      : `Marca hasta ${MAX_FEATURED} productos. Estos aparecerán en la home cuando la rotación automática esté apagada.`;
+  }
+
+  if (allProducts.length === 0) {
+    list.innerHTML = '<p style="color:var(--gray-500); padding: 24px; text-align: center;">No hay productos cargados aún.</p>';
+    return;
+  }
+
+  const activeOnly = allProducts.filter(p => p.active !== false);
+  list.innerHTML = activeOnly.map(p => {
+    const on = p.featured ? 'is-featured' : '';
+    const priceInfo = p.quality_prices?.G5 || p.quality_prices?.PK || p.price;
+    return `
+      <div class="feat-item ${on}" data-feat-id="${p.id}">
+        ${p.image_url
+          ? `<img src="${p.image_url}" class="feat-item__img" alt="">`
+          : `<div class="feat-item__img feat-item__img--empty">👟</div>`}
+        <div class="feat-item__info">
+          <div class="feat-item__name">${escapeHtml(p.name)}</div>
+          <div class="feat-item__meta">${priceInfo ? fmtCLP(priceInfo) : 'Sin precio'}</div>
+        </div>
+        <div class="feat-item__star">★</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Click en una tarjeta = toggle manual (con guard)
+document.addEventListener('click', async (e) => {
+  const card = e.target.closest('#featuredList .feat-item');
+  if (!card) return;
+  if (featuredRotation.enabled) {
+    return toast('Apaga la rotación automática para hacer selección manual.', 'error');
+  }
+  const id = parseInt(card.dataset.featId, 10);
+  const p = allProducts.find(x => x.id === id);
+  if (!p) return;
+
+  const currentCount = allProducts.filter(x => x.featured).length;
+  const nextValue = !p.featured;
+  if (nextValue && currentCount >= MAX_FEATURED) {
+    return toast('Ya tienes 5 productos destacados, desmarca uno para agregar otro.', 'error');
+  }
+  const { error } = await sb.from('products').update({ featured: nextValue }).eq('id', id);
+  if (error) return toast('Error: ' + error.message, 'error');
+  p.featured = nextValue;
+  renderFeaturedTab();
+  renderTable();
+  renderStats();
+});
+
+// Toggle rotación automática
+document.addEventListener('change', async (e) => {
+  const toggle = e.target.closest('#rotationToggle');
+  if (!toggle) return;
+
+  const nowOn = toggle.checked;
+  if (nowOn) {
+    // Guardar snapshot manual antes de arrancar la auto-rotación
+    const manualIds = allProducts.filter(p => p.featured).map(p => p.id);
+    featuredRotation.manual_snapshot = manualIds;
+    featuredRotation.enabled = true;
+    const ok = await saveFeaturedRotation();
+    if (!ok) { toggle.checked = false; featuredRotation.enabled = false; return; }
+    toast('Rotación automática activada — rotando ahora...', 'success');
+    await performRotation({ silent: false });
+  } else {
+    // Restaurar snapshot manual
+    featuredRotation.enabled = false;
+    const ok = await saveFeaturedRotation();
+    if (!ok) { toggle.checked = true; featuredRotation.enabled = true; return; }
+    await restoreManualSnapshot();
+    toast('Rotación apagada — restaurada tu selección manual', 'success');
+  }
+});
+
+// Botón "Rotar ahora"
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('#rotateNowBtn');
+  if (!btn) return;
+  if (!featuredRotation.enabled) return;
+  btn.disabled = true;
+  await performRotation({ silent: false });
+  btn.disabled = false;
+});
+
+async function performRotation({ silent } = {}) {
+  const pool = allProducts.filter(p => p.active !== false);
+  if (pool.length === 0) {
+    if (!silent) toast('No hay productos activos para rotar.', 'error');
+    return;
+  }
+
+  // Selección aleatoria de hasta MAX_FEATURED
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  const winners = shuffled.slice(0, Math.min(MAX_FEATURED, pool.length)).map(p => p.id);
+
+  // Desmarcar todos primero, luego marcar los ganadores
+  const currentFeatured = allProducts.filter(p => p.featured).map(p => p.id);
+  const toUnfeature = currentFeatured.filter(id => !winners.includes(id));
+  const toFeature = winners.filter(id => !currentFeatured.includes(id));
+
+  if (toUnfeature.length) {
+    const { error } = await sb.from('products').update({ featured: false }).in('id', toUnfeature);
+    if (error) {
+      if (!silent) toast('Error rotando (paso 1): ' + error.message, 'error');
+      return;
+    }
+  }
+  if (toFeature.length) {
+    const { error } = await sb.from('products').update({ featured: true }).in('id', toFeature);
+    if (error) {
+      if (!silent) toast('Error rotando (paso 2): ' + error.message, 'error');
+      return;
+    }
+  }
+
+  // Sincronizar estado local
+  allProducts.forEach(p => { p.featured = winners.includes(p.id); });
+  featuredRotation.last_rotation_at = new Date().toISOString();
+  await saveFeaturedRotation();
+
+  if (!silent) toast(`Rotación completada — ${winners.length} nuevos destacados`, 'success');
+  renderFeaturedTab();
+  renderTable();
+  renderStats();
+}
+
+async function restoreManualSnapshot() {
+  const snap = Array.isArray(featuredRotation.manual_snapshot) ? featuredRotation.manual_snapshot : [];
+  const validSnap = snap.filter(id => allProducts.some(p => p.id === id)).slice(0, MAX_FEATURED);
+  const currentFeatured = allProducts.filter(p => p.featured).map(p => p.id);
+  const toUnfeature = currentFeatured.filter(id => !validSnap.includes(id));
+  const toFeature = validSnap.filter(id => !currentFeatured.includes(id));
+
+  if (toUnfeature.length) {
+    await sb.from('products').update({ featured: false }).in('id', toUnfeature);
+  }
+  if (toFeature.length) {
+    await sb.from('products').update({ featured: true }).in('id', toFeature);
+  }
+
+  allProducts.forEach(p => { p.featured = validSnap.includes(p.id); });
+  renderFeaturedTab();
+  renderTable();
+  renderStats();
+}
 
 // ============ INIT ============
 checkAuth();

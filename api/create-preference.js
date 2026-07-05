@@ -137,8 +137,8 @@ export default async function handler(req, res) {
         failure: `${origin}/gracias.html?status=failure`
       } : undefined,
       auto_return: origin ? 'approved' : undefined,
-      statement_descriptor: 'DistritoSneakers',
-      external_reference: externalReference || `DS-${Date.now()}-${productId || 'x'}`
+      statement_descriptor: 'SpeedStyleCL',
+      external_reference: externalReference || `SS-${Date.now()}-${productId || 'x'}`
     };
 
     const mpRes = await fetch('https://api.mercadopago.com/checkout/preferences', {

@@ -1,8 +1,8 @@
 @echo off
-title Distrito Sneakers - Abrir Tienda
+title Speed Style CL - Abrir Tienda
 echo.
 echo  ========================================
-echo    DISTRITO SNEAKERS - Abriendo tienda...
+echo    SPEED STYLE CL - Abriendo tienda...
 echo  ========================================
 echo.
 start "" "%~dp0index.html"

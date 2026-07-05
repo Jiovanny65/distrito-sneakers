@@ -1,5 +1,5 @@
 // ============================================
-//   Distrito Sneakers — Configuración Supabase
+//   Speed Style CL — Configuración Supabase
 //   La publishable key es SEGURA en frontend (con RLS activo).
 //   Nunca pegues la SECRET key aquí ni en ningún archivo del cliente.
 // ============================================

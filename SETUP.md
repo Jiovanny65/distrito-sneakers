@@ -1,4 +1,4 @@
-# Distrito Sneakers — Guía de configuración Supabase
+# Speed Style CL — Guía de configuración Supabase
 
 ## ⚠️ Antes de empezar
 
@@ -42,7 +42,7 @@ Estructura ya lista, sin build step. Solo:
 ```bash
 git init
 git add .
-git commit -m "Distrito Sneakers v1"
+git commit -m "Speed Style CL v1"
 gh repo create distrito-sneakers --public --source=. --push
 ```
 

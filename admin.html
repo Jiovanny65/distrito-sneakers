@@ -4,9 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex,nofollow" />
-  <title>Admin · Distrito Sneakers</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png?v=8">
+  <title>Admin · Speed Style CL</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="admin.css?v=7" />
+  <link rel="stylesheet" href="admin.css?v=8" />
 </head>
 <body>
 
@@ -14,7 +15,7 @@
   <section class="login" id="loginScreen">
     <div class="login__card">
       <div class="login__brand">
-        <img src="assets/logo.png" alt="Distrito Sneakers" class="login__logo">
+        <img src="assets/logo.png" alt="Speed Style CL" class="login__logo">
       </div>
       <h1>Panel de Administración</h1>
       <p class="login__sub">Inicia sesión para gestionar tu tienda.</p>
@@ -22,7 +23,7 @@
       <form id="loginForm" class="form">
         <div class="form__group">
           <label>Email</label>
-          <input type="email" name="email" required autocomplete="email" placeholder="admin@distritosneakers.cl">
+          <input type="email" name="email" required autocomplete="email" placeholder="admin@speedstyle.cl">
         </div>
         <div class="form__group">
           <label>Contraseña</label>
@@ -41,7 +42,7 @@
 
     <header class="topbar-admin">
       <div class="topbar-admin__brand">
-        <img src="assets/logo.png" alt="Distrito Sneakers" class="topbar-admin__logo">
+        <img src="assets/logo.png" alt="Speed Style CL" class="topbar-admin__logo">
         <span class="topbar-admin__pill">ADMIN</span>
       </div>
       <div class="topbar-admin__actions">
@@ -57,6 +58,7 @@
         <button class="tab tab--active" data-tab="orders">📦 Pedidos</button>
         <button class="tab" data-tab="products">👟 Productos</button>
         <button class="tab" data-tab="categories">🗂️ Categorías</button>
+        <button class="tab" data-tab="featured">⭐ Destacados</button>
       </nav>
 
       <!-- ============ TAB: PEDIDOS ============ -->
@@ -203,6 +205,62 @@
 
       </section>
 
+      <!-- ============ TAB: DESTACADOS ============ -->
+      <section class="tab-panel" data-panel="featured">
+
+        <div class="featured-panel">
+          <div class="featured-panel__head">
+            <div>
+              <h2 style="font-size:22px;">⭐ Productos destacados</h2>
+              <p style="color:var(--gray-500); font-size:13.5px; margin-top:4px;">
+                Máximo 5 productos aparecen en la sección "Destacados" de la home.
+              </p>
+            </div>
+            <div class="featured-counter">
+              <span id="featuredCount">0</span> / 5
+            </div>
+          </div>
+
+          <div class="rotation-card">
+            <div class="rotation-card__row">
+              <div>
+                <h3 style="font-size:16px; margin-bottom:4px;">🔁 Rotación automática</h3>
+                <p style="font-size:13px; color:var(--gray-500);">
+                  Con esto activo, cada 3 h se eligen 5 productos aleatorios del catálogo y se marcan como destacados.
+                  Ignora la selección manual mientras esté encendido. Al apagarlo se restaura tu última selección manual.
+                </p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="rotationToggle">
+                <span class="switch__slider"></span>
+              </label>
+            </div>
+
+            <div class="rotation-card__meta" id="rotationMeta">
+              <div>
+                <span class="rotation-card__label">Última rotación</span>
+                <span id="rotationLast">—</span>
+              </div>
+              <div>
+                <span class="rotation-card__label">Próxima rotación estimada</span>
+                <span id="rotationNext">—</span>
+              </div>
+              <button type="button" class="btn btn--ghost btn--sm" id="rotateNowBtn" disabled>🎲 Rotar ahora</button>
+            </div>
+          </div>
+
+          <div class="featured-panel__section-title">Selección manual</div>
+          <p style="font-size:13px; color:var(--gray-500); margin-bottom:14px;" id="manualSelectionHint">
+            Marca hasta 5 productos. Estos aparecerán en la home cuando la rotación automática esté apagada.
+          </p>
+
+          <div class="featured-list" id="featuredList">
+            <p style="color:var(--gray-500); padding: 24px; text-align: center;">Cargando productos...</p>
+          </div>
+        </div>
+
+      </section>
+
     </main>
   </section>
 
@@ -255,11 +313,7 @@
 
         <div class="form__group form__group--full quality-prices-block">
           <label>Precios por calidad <span class="req">*</span></label>
-          <div class="quality-prices-grid">
-            <div class="qp-item">
-              <span class="qp-label">OG</span>
-              <input type="number" name="price_OG" min="0" step="1" placeholder="Ej: 49990">
-            </div>
+          <div class="quality-prices-grid quality-prices-grid--2">
             <div class="qp-item">
               <span class="qp-label">G5</span>
               <input type="number" name="price_G5" min="0" step="1" placeholder="Ej: 89990">
@@ -270,7 +324,7 @@
             </div>
           </div>
           <small style="color:var(--gray-500);font-size:12px;display:block;margin-top:6px;">
-            Define al menos un precio. Solo las calidades con precio se mostrarán al cliente.
+            Define al menos un precio (G5 o PK). Solo las calidades con precio se mostrarán al cliente.
           </small>
         </div>
 
@@ -420,7 +474,6 @@
           <label>Calidad <span class="req">*</span></label>
           <select name="quality" id="manualQuality" required>
             <option value="">Selecciona calidad</option>
-            <option value="OG">OG</option>
             <option value="G5">G5</option>
             <option value="PK">PK</option>
           </select>
@@ -519,7 +572,7 @@
   <div class="toast" id="toast"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase-config.js?v=7"></script>
-  <script src="admin.js?v=7"></script>
+  <script src="supabase-config.js?v=8"></script>
+  <script src="admin.js?v=8"></script>
 </body>
 </html>

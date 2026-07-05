@@ -3,12 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Distrito Sneakers — Tienda online de zapatillas en Chile. Calidades PK, G5 y OG con envío a todo el país y rastreo online." />
-  <title>Distrito Sneakers — Las zapatillas más buscadas en Chile</title>
+  <meta name="description" content="Speed Style CL — Tienda online de zapatillas en Chile. Calidades PK y G5 con envío a todo el país y rastreo online." />
+  <title>Speed Style CL — Las zapatillas más buscadas en Chile</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png?v=8">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=8" />
+  <meta property="og:title" content="Speed Style CL — Zapatillas premium en Chile">
+  <meta property="og:description" content="Calidades PK y G5. Envío a todo Chile con rastreo online.">
+  <meta property="og:image" content="assets/logo.png?v=8">
 </head>
 <body>
 
@@ -19,7 +23,7 @@
       <span class="topbar__sep">•</span>
       <span>Rastreo online incluido</span>
       <span class="topbar__sep">•</span>
-      <span>Calidades PK · G5 · OG</span>
+      <span>Calidades PK · G5</span>
     </div>
   </div>
 
@@ -27,13 +31,20 @@
   <header class="header">
     <div class="container header__inner">
       <a href="#inicio" class="logo">
-        <img src="assets/logo.png" alt="Logo" class="logo__img">
+        <img src="assets/logo.png?v=8" alt="Speed Style CL" class="logo__img">
       </a>
 
       <nav class="nav" id="nav">
         <a href="#inicio">Inicio</a>
-        <a href="#modelos">Modelos</a>
         <a href="#destacados">Destacados</a>
+        <div class="nav-dropdown" id="navCategoriesWrap">
+          <button type="button" class="nav-dropdown__toggle" id="navCategoriesToggle" aria-haspopup="true" aria-expanded="false">
+            Categorías <span class="nav-dropdown__caret">▾</span>
+          </button>
+          <div class="nav-dropdown__menu" id="navCategoriesMenu" role="menu">
+            <!-- Categorías dinámicas se inyectan aquí -->
+          </div>
+        </div>
         <a href="#tallas">Guía de tallas</a>
         <a href="#faq">FAQ</a>
         <a href="#contacto">Contacto</a>
@@ -62,13 +73,13 @@
         Envíos a todo Chile con rastreo online.<br>
         En 2 a 4 semanas hábiles tendrás tu par en tus manos.</p>
         <div class="hero__cta">
-          <a href="#modelos" class="btn btn--primary">Ver categorías</a>
-          <a href="#destacados" class="btn btn--ghost">Destacados</a>
+          <a href="#destacados" class="btn btn--primary">Ver destacados</a>
+          <a href="#contacto" class="btn btn--ghost">Contactar</a>
         </div>
         <div class="hero__stats">
           <div><strong>🇨🇱</strong><span>Envío a todo Chile</span></div>
           <div><strong>2-4 sem.</strong><span>tiempo de entrega</span></div>
-          <div><strong>PK·G5·OG</strong><span>3 calidades</span></div>
+          <div><strong>PK · G5</strong><span>2 calidades</span></div>
         </div>
       </div>
       <div class="hero__media">
@@ -85,7 +96,7 @@
         <span class="hero__particle hero__particle--4"></span>
         <span class="hero__particle hero__particle--5"></span>
         <span class="hero__particle hero__particle--6"></span>
-        <div class="hero__hud hero__hud--tl">PK · G5 · OG</div>
+        <div class="hero__hud hero__hud--tl">PK · G5</div>
         <div class="hero__hud hero__hud--tr">RT · 100%</div>
         <div class="hero__hud hero__hud--bl">SCAN ✓</div>
         <div class="hero__hud hero__hud--br">CL · 🇨🇱</div>
@@ -94,39 +105,28 @@
     </div>
   </section>
 
-  <!-- ============ CATEGORÍAS ============ -->
-  <section class="section section--alt" id="modelos">
+  <!-- ============ DESTACADOS ============ -->
+  <section class="section section--alt" id="destacados">
     <div class="container">
-      <div class="section__head">
-        <h2>Modelos disponibles</h2>
-        <p>Explora por modelo y descubre todos los pares de tu favorito.</p>
+      <div class="section__head section__head--featured">
+        <h2>Destacados</h2>
+        <p class="section__accent-sub">TU MEJOR ELECCIÓN EMPIEZA AQUÍ</p>
       </div>
-      <div class="cat-grid" id="catGrid">
+      <div class="grid" id="featuredGrid">
         <p style="text-align:center; color:var(--gray-500); grid-column:1/-1;">Cargando...</p>
       </div>
     </div>
   </section>
 
-  <!-- ============ DESTACADOS ============ -->
-  <section class="section section--alt" id="destacados">
-    <div class="container">
-      <div class="section__head">
-        <h2>Productos destacados</h2>
-        <p>Los favoritos del mes, elegidos por la comunidad.</p>
-      </div>
-      <div class="grid" id="featuredGrid"></div>
-    </div>
-  </section>
-
-  <!-- ============ RESULTADOS DE CATEGORÍA (oculto hasta que clickeen una) ============ -->
+  <!-- ============ RESULTADOS DE CATEGORÍA (visible al elegir una en el nav) ============ -->
   <section class="section" id="catalogo" hidden>
     <div class="container">
       <div class="section__head section__head--row">
         <div>
-          <h2 id="catResultsTitle">Modelos</h2>
-          <p id="catResultsHint">Selecciona un modelo arriba.</p>
+          <h2 id="catResultsTitle">Categoría</h2>
+          <p id="catResultsHint">Selecciona una categoría desde el menú.</p>
         </div>
-        <a href="#modelos" class="btn btn--ghost btn--sm" id="backToCategoriesBtn">← Volver a categorías</a>
+        <a href="#inicio" class="btn btn--ghost btn--sm" id="backToCategoriesBtn">← Volver al inicio</a>
       </div>
       <div class="grid" id="catalogGrid"></div>
     </div>
@@ -136,7 +136,7 @@
   <section class="section section--alt" id="beneficios">
     <div class="container">
       <div class="section__head">
-        <h2>¿Por qué comprar en Distrito Sneakers?</h2>
+        <h2>¿Por qué comprar en Speed Style CL?</h2>
         <p>Más que una tienda, una comunidad de estilo.</p>
       </div>
       <div class="benefits">
@@ -152,8 +152,8 @@
         </div>
         <div class="benefit">
           <div class="benefit__icon">⭐</div>
-          <h3>Calidades PK · G5 · OG</h3>
-          <p>Trabajamos con las mejores calidades del mercado: PK premium, G5 alta gama y OG originales.</p>
+          <h3>Calidades PK · G5</h3>
+          <p>Trabajamos con las mejores calidades del mercado: PK premium y G5 alta gama.</p>
         </div>
         <div class="benefit">
           <div class="benefit__icon">💬</div>
@@ -231,11 +231,10 @@
           <p>Sí. Realizamos envíos a <strong>todo Chile</strong>, desde Arica hasta Punta Arenas. Puedes elegir entrega a domicilio o punto de entrega (solo en Curicó).</p>
         </details>
         <details class="faq__item">
-          <summary>¿Qué calidades manejan? (PK, G5, OG)</summary>
-          <p>Trabajamos con 3 niveles de calidad para que elijas la que mejor se adapte a ti:<br>
+          <summary>¿Qué calidades manejan? (PK, G5)</summary>
+          <p>Trabajamos con 2 niveles de calidad para que elijas la que mejor se adapte a ti:<br>
           • <strong>PK:</strong> Calidad premium, materiales y costuras casi idénticas a la original.<br>
-          • <strong>G5:</strong> Calidad alta gama, prácticamente indistinguible para el usuario común.<br>
-          • <strong>OG:</strong> Calidad media gama, opción más económica ideal para vestir a la moda.</p>
+          • <strong>G5:</strong> Calidad alta gama, prácticamente indistinguible para el usuario común.</p>
         </details>
         <details class="faq__item">
           <summary>¿Cómo rastreo mi pedido?</summary>
@@ -262,12 +261,12 @@
         <div class="contact__text">
           <span class="badge badge--light">Hablemos</span>
           <h2>¿Listo para tu próximo par?</h2>
-          <p>Escríbenos por WhatsApp y te asesoramos en la elección de tu modelo, calidad (PK, G5 u OG) y forma de envío a cualquier punto de Chile.</p>
+          <p>Escríbenos por WhatsApp y te asesoramos en la elección de tu modelo, calidad (PK o G5) y forma de envío a cualquier punto de Chile.</p>
           <div class="contact__info">
             <div><strong>WhatsApp:</strong> +56 9 7753 9776</div>
             <div><strong>Cobertura:</strong> Todo Chile 🇨🇱 con rastreo online</div>
             <div><strong>Tiempo de envío:</strong> 2 a 4 semanas</div>
-            <div><strong>Calidades:</strong> PK · G5 · OG</div>
+            <div><strong>Calidades:</strong> PK · G5</div>
           </div>
           <a href="https://wa.me/56977539776" target="_blank" class="btn btn--whatsapp">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20.52 3.48A11.93 11.93 0 0 0 12.04 0C5.5 0 .2 5.3.2 11.84c0 2.09.55 4.12 1.6 5.92L0 24l6.4-1.68a11.82 11.82 0 0 0 5.64 1.43h.01c6.54 0 11.84-5.3 11.84-11.84a11.8 11.8 0 0 0-3.37-8.43Z"/></svg>
@@ -276,7 +275,7 @@
         </div>
         <div class="contact__visual">
           <div class="contact__circle"></div>
-          <img src="assets/logo.png" alt="Logo" class="contact__logo">
+          <img src="assets/logo.png?v=8" alt="Speed Style CL" class="contact__logo">
         </div>
       </div>
     </div>
@@ -287,29 +286,28 @@
     <div class="container footer__inner">
       <div class="footer__brand">
         <a href="#inicio" class="logo logo--light">
-          <img src="assets/logo.png" alt="Logo" class="logo__img logo__img--light">
+          <img src="assets/logo.png?v=8" alt="Speed Style CL" class="logo__img logo__img--light">
         </a>
         <p>Estilo urbano que camina contigo.</p>
       </div>
       <div class="footer__cols">
         <div>
           <h4>Tienda</h4>
-          <a href="#modelos">Modelos</a>
           <a href="#destacados">Destacados</a>
           <a href="#beneficios">Beneficios</a>
+          <a href="#tallas">Guía de tallas</a>
         </div>
         <div>
           <h4>Ayuda</h4>
           <a href="#faq">Preguntas frecuentes</a>
           <a href="#contacto">Contacto</a>
-          <a href="#beneficios">Beneficios</a>
         </div>
       </div>
     </div>
     <div class="footer__bottom">
       <div class="container">
-        <span>© 2026 Distrito Sneakers — Todos los derechos reservados.</span>
-        <span>Envío a todo Chile · PK · G5 · OG</span>
+        <span>© 2026 Speed Style CL — Todos los derechos reservados.</span>
+        <span>Envío a todo Chile · PK · G5</span>
       </div>
     </div>
   </footer>
@@ -329,7 +327,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase-config.js"></script>
-  <script src="script.js"></script>
+  <script src="supabase-config.js?v=8"></script>
+  <script src="script.js?v=8"></script>
 </body>
 </html>

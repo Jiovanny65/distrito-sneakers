@@ -1,8 +1,8 @@
 {
-  "name": "distrito-sneakers",
+  "name": "speedstyle-cl",
   "version": "1.0.0",
   "private": true,
-  "description": "Distrito Sneakers — Tienda online con Supabase + Mercado Pago",
+  "description": "Speed Style CL — Tienda online con Supabase + Mercado Pago",
   "type": "module",
   "engines": {
     "node": ">=18"

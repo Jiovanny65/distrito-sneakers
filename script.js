@@ -1,5 +1,5 @@
 /* ============================================
-   Distrito Sneakers — Lógica de tienda
+   Speed Style CL — Lógica de tienda
    ============================================ */
 
 // Número de WhatsApp (cambiar por el real - formato Chile sin símbolos)
@@ -100,31 +100,74 @@ function productCard(p) {
 function renderFeatured() {
   const grid = $('#featuredGrid');
   const featured = PRODUCTS.filter(p => p.featured && p.active !== false);
+  if (featured.length === 0) {
+    grid.innerHTML = `
+      <div class="featured-empty" style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--gray-500);">
+        <div style="font-size:56px;margin-bottom:12px;">⭐</div>
+        <h3 style="font-family:'Space Grotesk',sans-serif;color:var(--black);margin-bottom:6px;">Aún no hay destacados</h3>
+        <p>Muy pronto encontrarás aquí nuestros favoritos.</p>
+      </div>
+    `;
+    return;
+  }
   grid.innerHTML = featured.map(productCard).join('');
 }
 
-function renderCategories() {
-  const grid = $('#catGrid');
-  if (!grid) return;
-  if (CATEGORIES.length === 0) {
-    grid.innerHTML = '<p style="text-align:center; color:var(--gray-500); grid-column:1/-1;">No hay modelos cargados aún.</p>';
+// Menú de navegación dinámico: pobla el dropdown "Categorías ▾" con todas las categorías activas
+function renderNav() {
+  const menu = $('#navCategoriesMenu');
+  const wrap = $('#navCategoriesWrap');
+  if (!menu || !wrap) return;
+  menu.innerHTML = '';
+  const sorted = CATEGORIES
+    .slice()
+    .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+  if (sorted.length === 0) {
+    wrap.style.display = 'none';
     return;
   }
-  grid.innerHTML = CATEGORIES.map(c => {
+  wrap.style.display = '';
+  sorted.forEach(c => {
     const count = PRODUCTS.filter(p => p.category_id === c.id).length;
-    const safeName = c.name.replace(/"/g, '&quot;');
-    return `
-      <a href="#cat=${encodeURIComponent(c.slug)}" class="cat-card-front" data-cat-slug="${c.slug}">
-        <div class="cat-card-front__image ${!c.image_url ? 'cat-card-front__image--empty' : ''}">
-          ${c.image_url ? `<img src="${c.image_url}" alt="${safeName}" loading="lazy">` : '🗂️'}
-          <div class="cat-card-front__overlay">
-            <div class="cat-card-front__name">${safeName}</div>
-            <div class="cat-card-front__count">${count} ${count === 1 ? 'modelo' : 'modelos'}</div>
-          </div>
-        </div>
-      </a>
+    const link = document.createElement('a');
+    link.href = `#cat=${encodeURIComponent(c.slug)}`;
+    link.className = 'nav-dropdown__item';
+    link.dataset.catNav = c.slug;
+    link.innerHTML = `
+      <span class="nav-dropdown__name">${c.name.replace(/</g, '&lt;')}</span>
+      <span class="nav-dropdown__count">${count}</span>
     `;
-  }).join('');
+    menu.appendChild(link);
+  });
+}
+
+function setupNavDropdown() {
+  const wrap = $('#navCategoriesWrap');
+  const btn  = $('#navCategoriesToggle');
+  if (!wrap || !btn) return;
+  const close = () => {
+    wrap.classList.remove('is-open');
+    btn.setAttribute('aria-expanded', 'false');
+  };
+  const open  = () => {
+    wrap.classList.add('is-open');
+    btn.setAttribute('aria-expanded', 'true');
+  };
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (wrap.classList.contains('is-open')) close();
+    else open();
+  });
+  document.addEventListener('click', (e) => {
+    if (!wrap.contains(e.target)) close();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') close();
+  });
+  // Cerrar al elegir una categoría
+  wrap.addEventListener('click', (e) => {
+    if (e.target.closest('.nav-dropdown__item')) close();
+  });
 }
 
 // Manejo de hash routing #cat=slug
@@ -179,9 +222,8 @@ function setupFilters() {
 }
 
 // ============ HELPERS DE CALIDAD ============
-const QUALITY_ORDER = ['OG', 'G5', 'PK'];
+const QUALITY_ORDER = ['G5', 'PK'];
 const QUALITY_LABELS = {
-  OG: 'OG',
   G5: 'G5',
   PK: 'PK'
 };
@@ -679,17 +721,18 @@ function setupEvents() {
 // ============ INIT ============
 document.addEventListener('DOMContentLoaded', async () => {
   setupEvents();
-  // Skeleton mientras cargan los modelos
+  // Skeleton mientras cargan los productos
   $('#featuredGrid').innerHTML = '';
 
   await Promise.all([loadProducts(), loadCategories()]);
   renderFeatured();
-  renderCategories();
+  renderNav();
+  setupNavDropdown();
 
   // Si hay hash #cat=slug, abrir esa categoría; si no, dejar la sección oculta
   applyCategoryFromHash();
 
-  // Reaccionar a cambios de hash (clicks en otras categorías)
+  // Reaccionar a cambios de hash (clicks en otras categorías o volver al inicio)
   window.addEventListener('hashchange', () => {
     applyCategoryFromHash();
   });
