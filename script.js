@@ -113,29 +113,32 @@ function renderFeatured() {
   grid.innerHTML = featured.map(productCard).join('');
 }
 
-// Menú de navegación dinámico: pobla el dropdown "Categorías ▾" con todas las categorías activas
+// Menú de navegación dinámico: pobla el dropdown "Categorías ▾"
+// Ocultamos categorías con 0 productos (fallbacks vacíos como "Zapatillas" no aparecen hasta tener contenido).
 function renderNav() {
   const menu = $('#navCategoriesMenu');
   const wrap = $('#navCategoriesWrap');
   if (!menu || !wrap) return;
   menu.innerHTML = '';
-  const sorted = CATEGORIES
-    .slice()
+
+  const enriched = CATEGORIES
+    .map(c => ({ ...c, __count: PRODUCTS.filter(p => p.category_id === c.id).length }))
+    .filter(c => c.__count > 0)
     .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
-  if (sorted.length === 0) {
+
+  if (enriched.length === 0) {
     wrap.style.display = 'none';
     return;
   }
   wrap.style.display = '';
-  sorted.forEach(c => {
-    const count = PRODUCTS.filter(p => p.category_id === c.id).length;
+  enriched.forEach(c => {
     const link = document.createElement('a');
     link.href = `#cat=${encodeURIComponent(c.slug)}`;
     link.className = 'nav-dropdown__item';
     link.dataset.catNav = c.slug;
     link.innerHTML = `
       <span class="nav-dropdown__name">${c.name.replace(/</g, '&lt;')}</span>
-      <span class="nav-dropdown__count">${count}</span>
+      <span class="nav-dropdown__count">${c.__count}</span>
     `;
     menu.appendChild(link);
   });
