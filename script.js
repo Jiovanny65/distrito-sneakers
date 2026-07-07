@@ -65,27 +65,52 @@ const $ = (sel, ctx = document) => ctx.querySelector(sel);
 const $$ = (sel, ctx = document) => ctx.querySelectorAll(sel);
 
 const formatPrice = (price) => {
-  return '$' + price.toLocaleString('es-AR');
+  return '$' + Number(price || 0).toLocaleString('es-CL');
 };
 
 // ============ RENDER PRODUCTS ============
+function categoryLabelFor(p) {
+  // Prefiere el nombre de la categoría dinámica (dropdown/DB); fallback al campo legacy `category`
+  if (p.category_id) {
+    const c = CATEGORIES.find(x => x.id === p.category_id);
+    if (c) return c.name;
+  }
+  return p.category || '';
+}
+
 function productCard(p) {
   const img = p.image_url;
   const media = img
     ? `<img class="product__img" src="${img}" alt="${p.name}" loading="lazy">`
     : `<span class="product__emoji">👟</span>`;
+
+  const qualities = getQualityList(p);
+  const catLabel = categoryLabelFor(p);
+  const isFav = !!p.featured;
+  const isDarkTag = p.tag && ['Edición Limitada', 'Holy Grail', 'Grail'].includes(p.tag);
+
+  // Precio mínimo mostrado si hay calidades definidas; si no, texto "Consultar"
+  const priceHtml = qualities.length
+    ? `<span class="product__price">${formatPrice(Math.min(...qualities.map(q => q.price)))}</span>`
+    : `<span class="product__price product__price--ask">Consultar precio</span>`;
+
+  const qtagsHtml = qualities.map(q =>
+    `<span class="qtag qtag--${q.key.toLowerCase()}">${q.label}</span>`
+  ).join('');
+
   return `
-    <article class="product" data-category="${p.category}" data-id="${p.id}">
+    <article class="product" data-category="${p.category}" data-id="${p.id}" data-action="open">
       <div class="product__image">
-        ${p.tag ? `<span class="product__tag ${p.tag === 'Edición Limitada' || p.tag === 'Holy Grail' || p.tag === 'Grail' ? 'product__tag--dark' : ''}">${p.tag}</span>` : ''}
+        ${p.tag ? `<span class="product__tag ${isDarkTag ? 'product__tag--dark' : ''}">${p.tag}</span>` : ''}
+        ${isFav ? `<span class="product__fav" title="Destacado">★</span>` : ''}
         ${media}
       </div>
       <div class="product__body">
-        <span class="product__cat">${p.category}</span>
+        ${catLabel ? `<span class="product__cat">${catLabel}</span>` : ''}
         <h3 class="product__name">${p.name}</h3>
-        <p class="product__desc">${p.description}</p>
+        ${qtagsHtml ? `<div class="product__quality">${qtagsHtml}</div>` : ''}
         <div class="product__footer">
-          <span class="product__price product__price--ask">Consultar por calidad</span>
+          ${priceHtml}
           <button class="product__btn" data-action="open" data-id="${p.id}">Ver →</button>
         </div>
       </div>
