@@ -138,63 +138,87 @@ function renderFeatured() {
   grid.innerHTML = featured.map(productCard).join('');
 }
 
-// Menú de navegación dinámico: pobla el dropdown "Categorías ▾"
-// Ocultamos categorías con 0 productos (fallbacks vacíos como "Zapatillas" no aparecen hasta tener contenido).
+// Menú de navegación dinámico: pobla los 3 dropdowns (zapatillas / ropa / gorros)
+// según el campo `section` de cada categoría. Vacíos → mensaje "Próximamente".
+// Se sigue ocultando la categoría del dropdown si tiene 0 productos.
 function renderNav() {
-  const menu = $('#navCategoriesMenu');
-  const wrap = $('#navCategoriesWrap');
-  if (!menu || !wrap) return;
-  menu.innerHTML = '';
+  const wraps = $$('.nav-dropdown[data-section]');
+  if (!wraps.length) return;
 
-  const enriched = CATEGORIES
-    .map(c => ({ ...c, __count: PRODUCTS.filter(p => p.category_id === c.id).length }))
-    .filter(c => c.__count > 0)
-    .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+  const bySection = { zapatillas: [], ropa: [], gorros: [] };
+  CATEGORIES.forEach(c => {
+    const section = c.section || 'zapatillas';
+    if (!bySection[section]) bySection[section] = [];
+    bySection[section].push({
+      ...c,
+      __count: PRODUCTS.filter(p => p.category_id === c.id).length
+    });
+  });
 
-  if (enriched.length === 0) {
-    wrap.style.display = 'none';
-    return;
-  }
-  wrap.style.display = '';
-  enriched.forEach(c => {
-    const link = document.createElement('a');
-    link.href = `#cat=${encodeURIComponent(c.slug)}`;
-    link.className = 'nav-dropdown__item';
-    link.dataset.catNav = c.slug;
-    link.innerHTML = `
-      <span class="nav-dropdown__name">${c.name.replace(/</g, '&lt;')}</span>
-      <span class="nav-dropdown__count">${c.__count}</span>
-    `;
-    menu.appendChild(link);
+  wraps.forEach(wrap => {
+    const section = wrap.dataset.section;
+    const menu = wrap.querySelector('.nav-dropdown__menu');
+    if (!menu) return;
+
+    const items = (bySection[section] || [])
+      .filter(c => c.__count > 0)
+      .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+
+    if (items.length === 0) {
+      // Dejamos el dropdown visible con estado "próximamente".
+      menu.innerHTML = `
+        <div class="nav-dropdown__empty">
+          <div class="nav-dropdown__empty-icon">🕒</div>
+          <div>Próximamente</div>
+        </div>
+      `;
+      return;
+    }
+
+    menu.innerHTML = items.map(c => `
+      <a href="#cat=${encodeURIComponent(c.slug)}" class="nav-dropdown__item" data-cat-nav="${c.slug}">
+        <span class="nav-dropdown__name">${c.name.replace(/</g, '&lt;')}</span>
+        <span class="nav-dropdown__count">${c.__count}</span>
+      </a>
+    `).join('');
   });
 }
 
 function setupNavDropdown() {
-  const wrap = $('#navCategoriesWrap');
-  const btn  = $('#navCategoriesToggle');
-  if (!wrap || !btn) return;
-  const close = () => {
-    wrap.classList.remove('is-open');
-    btn.setAttribute('aria-expanded', 'false');
+  const wraps = Array.from($$('.nav-dropdown[data-section]'));
+  if (!wraps.length) return;
+
+  const closeAll = () => {
+    wraps.forEach(w => {
+      w.classList.remove('is-open');
+      const b = w.querySelector('.nav-dropdown__toggle');
+      if (b) b.setAttribute('aria-expanded', 'false');
+    });
   };
-  const open  = () => {
-    wrap.classList.add('is-open');
-    btn.setAttribute('aria-expanded', 'true');
-  };
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (wrap.classList.contains('is-open')) close();
-    else open();
+
+  wraps.forEach(wrap => {
+    const btn = wrap.querySelector('.nav-dropdown__toggle');
+    if (!btn) return;
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const wasOpen = wrap.classList.contains('is-open');
+      closeAll();
+      if (!wasOpen) {
+        wrap.classList.add('is-open');
+        btn.setAttribute('aria-expanded', 'true');
+      }
+    });
+    // Cerrar al elegir una categoría
+    wrap.addEventListener('click', (e) => {
+      if (e.target.closest('.nav-dropdown__item')) closeAll();
+    });
   });
+
   document.addEventListener('click', (e) => {
-    if (!wrap.contains(e.target)) close();
+    if (!e.target.closest('.nav-dropdown[data-section]')) closeAll();
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') close();
-  });
-  // Cerrar al elegir una categoría
-  wrap.addEventListener('click', (e) => {
-    if (e.target.closest('.nav-dropdown__item')) close();
+    if (e.key === 'Escape') closeAll();
   });
 }
 

@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Speed Style CL — Streetwear y sneakers en Chile. Zapatillas, poleras, polerones, gorros y pasamontañas. Calidades G5 y PK con envío a todo el país." />
   <title>Speed Style CL — Streetwear · Sneakers · Chile</title>
-  <link rel="icon" type="image/png" href="assets/favicon.png?v=9">
+  <link rel="icon" type="image/png" href="assets/favicon.png?v=10">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=9" />
+  <link rel="stylesheet" href="styles.css?v=10" />
   <meta property="og:title" content="Speed Style CL — Streetwear · Sneakers · Chile">
   <meta property="og:description" content="Zapatillas, poleras, gorros y más. Calidades G5 y PK. Envío a todo Chile con rastreo.">
-  <meta property="og:image" content="assets/logo.png?v=9">
+  <meta property="og:image" content="assets/logo.png?v=10">
 </head>
 <body>
 
@@ -31,20 +31,30 @@
   <header class="header">
     <div class="container header__inner">
       <a href="#inicio" class="logo">
-        <img src="assets/logo.png?v=9" alt="Speed Style CL" class="logo__img">
+        <img src="assets/logo.png?v=10" alt="Speed Style CL" class="logo__img">
         <div class="logo__wordmark">SPEED STYLE<span>.CL</span></div>
       </a>
 
       <nav class="nav" id="nav">
         <a href="#inicio">Inicio</a>
         <a href="#destacados">Destacados</a>
-        <div class="nav-dropdown" id="navCategoriesWrap">
-          <button type="button" class="nav-dropdown__toggle" id="navCategoriesToggle" aria-haspopup="true" aria-expanded="false">
-            Categorías <span class="nav-dropdown__caret">▾</span>
+        <div class="nav-dropdown" data-section="zapatillas">
+          <button type="button" class="nav-dropdown__toggle" aria-haspopup="true" aria-expanded="false">
+            Zapatillas <span class="nav-dropdown__caret">▾</span>
           </button>
-          <div class="nav-dropdown__menu" id="navCategoriesMenu" role="menu">
-            <!-- Categorías dinámicas se inyectan aquí -->
-          </div>
+          <div class="nav-dropdown__menu" role="menu"></div>
+        </div>
+        <div class="nav-dropdown" data-section="ropa">
+          <button type="button" class="nav-dropdown__toggle" aria-haspopup="true" aria-expanded="false">
+            Ropa <span class="nav-dropdown__caret">▾</span>
+          </button>
+          <div class="nav-dropdown__menu" role="menu"></div>
+        </div>
+        <div class="nav-dropdown" data-section="gorros">
+          <button type="button" class="nav-dropdown__toggle" aria-haspopup="true" aria-expanded="false">
+            Gorros <span class="nav-dropdown__caret">▾</span>
+          </button>
+          <div class="nav-dropdown__menu" role="menu"></div>
         </div>
         <a href="#tallas">Tallas</a>
         <a href="#faq">FAQ</a>
@@ -250,7 +260,7 @@
         </div>
         <div class="contact__visual">
           <div class="contact__circle"></div>
-          <img src="assets/logo.png?v=9" alt="Speed Style CL" class="contact__logo">
+          <img src="assets/logo.png?v=10" alt="Speed Style CL" class="contact__logo">
         </div>
       </div>
     </div>
@@ -261,7 +271,7 @@
     <div class="container footer__inner">
       <div class="footer__brand">
         <a href="#inicio" class="logo">
-          <img src="assets/logo.png?v=9" alt="Speed Style CL" class="logo__img">
+          <img src="assets/logo.png?v=10" alt="Speed Style CL" class="logo__img">
           <div class="logo__wordmark">SPEED STYLE<span>.CL</span></div>
         </a>
         <p>Streetwear y sneakers premium. Envío a todo Chile con rastreo online.</p>
@@ -304,7 +314,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase-config.js?v=9"></script>
-  <script src="script.js?v=9"></script>
+  <script src="supabase-config.js?v=10"></script>
+  <script src="script.js?v=10"></script>
 </body>
 </html>

@@ -969,37 +969,92 @@ function renderCategoryStats() {
   $('#cStatUnassigned').textContent = unassigned;
 }
 
+const SECTION_META = {
+  zapatillas: { label: 'Zapatillas', icon: '👟' },
+  ropa:       { label: 'Ropa',       icon: '👕' },
+  gorros:     { label: 'Gorros',     icon: '🧢' }
+};
+
+let categoryFilterSection = 'all';
+
 function renderCategoriesGrid() {
   const grid = $('#categoriesGrid');
+
   if (allCategories.length === 0) {
     grid.innerHTML = '<p style="color:var(--gray-500); padding: 30px; text-align: center;">No hay categorías. Crea la primera con "+ Nueva categoría".</p>';
     return;
   }
 
-  grid.innerHTML = allCategories.map((c, idx) => {
-    const count = allProducts.filter(p => p.category_id === c.id).length;
-    const isFirst = idx === 0;
-    const isLast  = idx === allCategories.length - 1;
+  // Agrupar por section, respetando display_order dentro de cada grupo
+  const bySection = { zapatillas: [], ropa: [], gorros: [] };
+  allCategories.forEach(c => {
+    const s = c.section || 'zapatillas';
+    if (!bySection[s]) bySection[s] = [];
+    bySection[s].push(c);
+  });
+  Object.keys(bySection).forEach(s => {
+    bySection[s].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+  });
+
+  const sectionsToShow = categoryFilterSection === 'all'
+    ? ['zapatillas', 'ropa', 'gorros']
+    : [categoryFilterSection];
+
+  const html = sectionsToShow.map(section => {
+    const meta = SECTION_META[section];
+    const cats = bySection[section] || [];
     return `
-      <div class="cat-card-admin" data-cat-id="${c.id}">
-        <div class="cat-card-admin__order">
-          <button class="ord-btn" data-move-cat="up" data-id="${c.id}" ${isFirst ? 'disabled' : ''} title="Subir">▲</button>
-          <span class="ord-pos">${idx + 1}</span>
-          <button class="ord-btn" data-move-cat="down" data-id="${c.id}" ${isLast ? 'disabled' : ''} title="Bajar">▼</button>
+      <div class="cat-section-group">
+        <div class="cat-section-group__head">
+          <span class="cat-section-group__icon">${meta.icon}</span>
+          <span class="cat-section-group__label">${meta.label}</span>
+          <span class="cat-section-group__count">${cats.length} ${cats.length === 1 ? 'categoría' : 'categorías'}</span>
         </div>
-        <div class="cat-card-admin__image ${!c.image_url ? 'cat-card-admin__image--empty' : ''}">
-          ${c.image_url ? `<img src="${c.image_url}" alt="${escapeHtml(c.name)}">` : '🗂️'}
-        </div>
-        <div class="cat-card-admin__body">
-          <div class="cat-card-admin__name">${escapeHtml(c.name)}</div>
-          <div class="cat-card-admin__count">
-            <strong>${count}</strong> producto${count === 1 ? '' : 's'} · /${c.slug}
-          </div>
-        </div>
+        ${cats.length === 0
+          ? `<div class="cat-section-group__empty">Aún no hay categorías en <b>${meta.label}</b>. Crea la primera con "+ Nueva categoría".</div>`
+          : `<div class="cat-section-group__grid">${cats.map((c, idx) => catCard(c, idx, cats.length)).join('')}</div>`
+        }
       </div>
     `;
   }).join('');
+
+  grid.innerHTML = html;
 }
+
+function catCard(c, idx, total) {
+  const count = allProducts.filter(p => p.category_id === c.id).length;
+  const isFirst = idx === 0;
+  const isLast  = idx === total - 1;
+  return `
+    <div class="cat-card-admin" data-cat-id="${c.id}">
+      <div class="cat-card-admin__order">
+        <button class="ord-btn" data-move-cat="up" data-id="${c.id}" ${isFirst ? 'disabled' : ''} title="Subir">▲</button>
+        <span class="ord-pos">${idx + 1}</span>
+        <button class="ord-btn" data-move-cat="down" data-id="${c.id}" ${isLast ? 'disabled' : ''} title="Bajar">▼</button>
+      </div>
+      <div class="cat-card-admin__image ${!c.image_url ? 'cat-card-admin__image--empty' : ''}">
+        ${c.image_url ? `<img src="${c.image_url}" alt="${escapeHtml(c.name)}">` : '🗂️'}
+      </div>
+      <div class="cat-card-admin__body">
+        <div class="cat-card-admin__name">${escapeHtml(c.name)}</div>
+        <div class="cat-card-admin__count">
+          <strong>${count}</strong> producto${count === 1 ? '' : 's'} · /${c.slug}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Filtro por sección
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('#catSectionFilter .section-filter__btn');
+  if (!btn) return;
+  categoryFilterSection = btn.dataset.section;
+  document.querySelectorAll('#catSectionFilter .section-filter__btn').forEach(b => {
+    b.classList.toggle('is-active', b === btn);
+  });
+  renderCategoriesGrid();
+});
 
 $('#categoriesGrid').addEventListener('click', async (e) => {
   // Botones de orden — manejan ellos solos, no abrir modal
@@ -1023,43 +1078,46 @@ async function reorderCategory(id, dir) {
     return;
   }
   reorderingCategory = true;
-  // Disable all reorder buttons mientras procesamos
   $$('[data-move-cat]').forEach(b => b.disabled = true);
 
   try {
-    const idx = allCategories.findIndex(c => c.id === id);
+    const target = allCategories.find(c => c.id === id);
+    if (!target) return;
+    const section = target.section || 'zapatillas';
+
+    // Trabajamos SOLO con las categorías de la misma sección (el orden es per-sección)
+    const sectionList = allCategories
+      .filter(c => (c.section || 'zapatillas') === section)
+      .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+
+    const idx = sectionList.findIndex(c => c.id === id);
     if (idx < 0) return;
     const targetIdx = dir === 'up' ? idx - 1 : idx + 1;
-    if (targetIdx < 0 || targetIdx >= allCategories.length) return;
+    if (targetIdx < 0 || targetIdx >= sectionList.length) return;
 
-    // Renumeracion completa: swap y luego asignar 10, 20, 30, ... a TODOS
-    const newOrder = [...allCategories];
+    const newOrder = [...sectionList];
     [newOrder[idx], newOrder[targetIdx]] = [newOrder[targetIdx], newOrder[idx]];
 
-    console.log('[reorderCategory] Renumerando', newOrder.length, 'categorías');
+    console.log('[reorderCategory] Renumerando', newOrder.length, 'categorías en sección', section);
 
     const updates = newOrder.map((cat, i) =>
       sb.from('categories').update({ display_order: (i + 1) * 10 }).eq('id', cat.id)
     );
-
     const results = await Promise.all(updates);
     const errResult = results.find(r => r.error);
     if (errResult) {
       console.error('[reorderCategory] Error:', errResult.error);
       toast('Error reordenando: ' + errResult.error.message, 'error');
-      // Refresh desde DB para recuperar estado consistente
       await loadCategories();
       return;
     }
 
-    // Sincronizar estado local
+    // Sincronizar estado local (mismo objeto compartido con allCategories)
     newOrder.forEach((cat, i) => { cat.display_order = (i + 1) * 10; });
-    allCategories = newOrder;
     renderCategoriesGrid();
     console.log('[reorderCategory] OK');
   } finally {
     reorderingCategory = false;
-    // Re-enable; renderCategoriesGrid ya pone disabled correctos
   }
 }
 
@@ -1076,6 +1134,10 @@ function openCategoryModal(categoryId = null) {
   $('#deleteCategoryBtn').style.display = isEdit ? 'inline-flex' : 'none';
   $('#catProductsBlock').style.display = isEdit ? 'block' : 'none';
 
+  // Reset section a Zapatillas por defecto (creación)
+  const secRadio = form.querySelector(`input[name="section"][value="zapatillas"]`);
+  if (secRadio) secRadio.checked = true;
+
   if (isEdit) {
     const cat = allCategories.find(c => c.id === categoryId);
     if (!cat) return;
@@ -1083,6 +1145,9 @@ function openCategoryModal(categoryId = null) {
     $('#catName').value = cat.name;
     $('#catImgUrl').value = cat.image_url || '';
     $('#catSlugPreview').textContent = '/categorias/' + cat.slug;
+    const section = cat.section || 'zapatillas';
+    const editRadio = form.querySelector(`input[name="section"][value="${section}"]`);
+    if (editRadio) editRadio.checked = true;
     if (cat.image_url) {
       $('#catImgPreview').innerHTML = `<img src="${cat.image_url}" alt="">`;
     }
@@ -1283,28 +1348,33 @@ $('#categoryForm').addEventListener('submit', async (e) => {
   const slug = slugify(name);
   if (!slug) return toast('Nombre inválido (sin caracteres válidos para slug)', 'error');
   const image_url = (fd.get('image_url') || '').trim() || null;
+  const section = fd.get('section') || 'zapatillas';
+  if (!['zapatillas', 'ropa', 'gorros'].includes(section)) {
+    return toast('Sección inválida', 'error');
+  }
 
-  console.log('[saveCategory]', { id, name, slug, image_url });
+  console.log('[saveCategory]', { id, name, slug, section, image_url });
 
   let catId;
   if (id) {
     catId = parseInt(id, 10);
     const { error } = await sb.from('categories')
-      .update({ name, slug, image_url })
+      .update({ name, slug, image_url, section })
       .eq('id', catId);
     if (error) {
       console.error('[saveCategory] update failed:', error);
       return toast('Error al actualizar: ' + (error.message || error.code), 'error');
     }
   } else {
-    // Calcular display_order para la nueva categoría: al final de la lista
-    const maxOrder = allCategories.length
-      ? Math.max(...allCategories.map(c => c.display_order || 0))
+    // Calcular display_order para la nueva categoría: al final de la sección elegida
+    const catsInSection = allCategories.filter(c => (c.section || 'zapatillas') === section);
+    const maxOrder = catsInSection.length
+      ? Math.max(...catsInSection.map(c => c.display_order || 0))
       : 0;
     const newOrder = maxOrder + 10;
 
     const { data, error } = await sb.from('categories')
-      .insert({ name, slug, image_url, display_order: newOrder })
+      .insert({ name, slug, image_url, section, display_order: newOrder })
       .select('id');
     if (error) {
       console.error('[saveCategory] insert failed:', error);

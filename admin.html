@@ -4,10 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex,nofollow" />
-  <link rel="icon" type="image/png" href="assets/favicon.png?v=8">
+  <link rel="icon" type="image/png" href="assets/favicon.png?v=10">
   <title>Admin · Speed Style CL</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="admin.css?v=8" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css?v=10" />
 </head>
 <body>
 
@@ -196,6 +198,15 @@
           <div class="stat stat--accent">
             <span class="stat__label">Acciones</span>
             <button class="btn btn--primary btn--sm" id="newCategoryBtn">+ Nueva categoría</button>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="section-filter" id="catSectionFilter">
+            <button class="section-filter__btn is-active" data-section="all">Todas</button>
+            <button class="section-filter__btn" data-section="zapatillas">👟 Zapatillas</button>
+            <button class="section-filter__btn" data-section="ropa">👕 Ropa</button>
+            <button class="section-filter__btn" data-section="gorros">🧢 Gorros</button>
           </div>
         </div>
 
@@ -393,6 +404,36 @@
         </div>
 
         <div class="form__group form__group--full">
+          <label>Sección <span class="req">*</span></label>
+          <div class="section-picker" id="catSectionPicker">
+            <label class="section-picker__option">
+              <input type="radio" name="section" value="zapatillas" checked>
+              <span class="section-picker__body">
+                <span class="section-picker__icon">👟</span>
+                <span class="section-picker__label">Zapatillas</span>
+              </span>
+            </label>
+            <label class="section-picker__option">
+              <input type="radio" name="section" value="ropa">
+              <span class="section-picker__body">
+                <span class="section-picker__icon">👕</span>
+                <span class="section-picker__label">Ropa</span>
+              </span>
+            </label>
+            <label class="section-picker__option">
+              <input type="radio" name="section" value="gorros">
+              <span class="section-picker__body">
+                <span class="section-picker__icon">🧢</span>
+                <span class="section-picker__label">Gorros</span>
+              </span>
+            </label>
+          </div>
+          <small style="color:var(--gray-500); font-size:12px; margin-top:6px; display:block;">
+            Bajo qué desplegable del navbar aparecerá esta categoría.
+          </small>
+        </div>
+
+        <div class="form__group form__group--full">
           <label>Nombre de la categoría <span class="req">*</span></label>
           <input type="text" name="name" id="catName" required placeholder="Ej: Jordan Retro 3">
           <small id="catSlugPreview" style="color:var(--gray-500); font-size:12px; margin-top:4px;"></small>
@@ -572,7 +613,7 @@
   <div class="toast" id="toast"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase-config.js?v=8"></script>
-  <script src="admin.js?v=8"></script>
+  <script src="supabase-config.js?v=10"></script>
+  <script src="admin.js?v=10"></script>
 </body>
 </html>

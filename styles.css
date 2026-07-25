@@ -200,6 +200,21 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .nav-dropdown__item::after { display: none !important; }
 .nav-dropdown__item:hover { background: rgba(212, 175, 55, 0.12); color: var(--gold-2) !important; }
+
+.nav-dropdown__empty {
+  padding: 22px 16px;
+  text-align: center;
+  color: var(--grey);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 14px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+.nav-dropdown__empty-icon { font-size: 26px; }
 .nav-dropdown__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-dropdown__count {
   background: rgba(212, 175, 55, 0.15);
